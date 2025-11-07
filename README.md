@@ -35,4 +35,18 @@ I enjoy exploring how intelligent systems work and how we can use them to make e
 
 ---
 
-> “Every expert was once a beginner — I’m just enjoying my path there.” ✨
+> “Every expert was once a beginner — I’m just enjoying my path there.” ✨  
+
+---
+
+## 📊 GitHub Stats
+
+![Vikas's GitHub stats](https://github-readme-stats.vercel.app/api?username=vikasvish2226&show_icons=true&theme=tokyonight)
+
+## 🔠 Top Languages
+
+![Top Langs](https://github-readme-stats.vercel.app/api/top-langs/?username=vikasvish2226&layout=compact&theme=tokyonight)
+
+## 👀 Profile Views
+
+![Profile views](https://komarev.com/ghpvc/?username=vikasvish2226&label=Profile%20views&color=0e75b6&style=flat)
