@@ -97,20 +97,20 @@ function App() {
 function Button(props: React.ButtonHTMLAttributes<HTMLButtonElement> & { tone?: "primary" | "dark" | "light" | "danger" }) {
   const tone = props.tone || "primary";
   const tones = {
-    primary: "bg-flame text-white hover:bg-[#e85e2d]",
-    dark: "bg-ink text-white hover:bg-black",
-    light: "bg-white text-ink border border-stone-200 hover:border-flame",
-    danger: "bg-red-500 text-white hover:bg-red-600",
+    primary: "bg-flame text-white shadow-sm hover:bg-[#d85124] hover:shadow-lift",
+    dark: "bg-ink text-white shadow-sm hover:bg-black hover:shadow-lift",
+    light: "border border-stone-200 bg-white text-ink shadow-sm hover:border-flame hover:bg-orange-50",
+    danger: "bg-red-500 text-white shadow-sm hover:bg-red-600 hover:shadow-lift",
   };
-  return <button {...props} className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-md px-4 py-2 font-semibold transition ${tones[tone]} ${props.className || ""}`} />;
+  return <button {...props} className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-md px-4 py-2 font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${tones[tone]} ${props.className || ""}`} />;
 }
 
 function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  return <input {...props} className={`min-h-11 w-full rounded-md border border-stone-200 bg-white px-3 outline-none focus:border-flame ${props.className || ""}`} />;
+  return <input {...props} className={`min-h-11 w-full rounded-md border border-stone-200 bg-white px-3 shadow-sm outline-none transition placeholder:text-stone-400 focus:border-flame focus:bg-white ${props.className || ""}`} />;
 }
 
 function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea {...props} className={`w-full rounded-md border border-stone-200 bg-white px-3 py-3 outline-none focus:border-flame ${props.className || ""}`} />;
+  return <textarea {...props} className={`w-full rounded-md border border-stone-200 bg-white px-3 py-3 shadow-sm outline-none transition placeholder:text-stone-400 focus:border-flame focus:bg-white ${props.className || ""}`} />;
 }
 
 function Landing({ navigate, restaurant }: { navigate: (to: string) => void; restaurant?: Restaurant }) {
@@ -141,17 +141,17 @@ function Landing({ navigate, restaurant }: { navigate: (to: string) => void; res
         </div>
       </nav>
 
-      <section className="relative flex min-h-[90vh] items-center overflow-hidden pt-16">
-        <img src="https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=1800&q=85" className="absolute inset-0 h-full w-full scale-105 object-cover landing-kenburns" />
-        <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/50 to-black/15" />
-        <div className="relative mx-auto grid w-full max-w-6xl items-center gap-10 px-5 py-16 text-white lg:grid-cols-[1.05fr_0.95fr]">
+      <section className="relative flex min-h-[1120px] items-center overflow-hidden pt-16 sm:min-h-[90vh]">
+        <img src="https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=1800&q=85" className="absolute inset-0 h-full w-full scale-105 object-cover object-[62%_center] landing-kenburns sm:object-center" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/75 via-black/55 to-black/80 sm:bg-gradient-to-r sm:from-black/80 sm:via-black/50 sm:to-black/15" />
+        <div className="relative mx-auto grid w-full max-w-6xl items-center gap-10 px-5 py-14 text-white sm:py-16 lg:grid-cols-[1.05fr_0.95fr]">
           <div className="max-w-2xl animate-rise">
             <div className="mb-4 inline-flex items-center gap-2 rounded-md bg-white/14 px-3 py-2 text-sm backdrop-blur">
               <QrCode size={16} /> QR menu, online ordering, and kitchen tokens
             </div>
-            <h1 className="text-5xl font-black leading-tight sm:text-7xl">Restaurant QR Ordering</h1>
-            <p className="mt-5 max-w-xl text-lg text-white/88">Owners manage menus and orders. Customers scan, order, track their token, and review food without making an account.</p>
-            <div className="mt-8 flex flex-wrap gap-3">
+            <h1 className="text-4xl font-black leading-tight sm:text-7xl">Restaurant QR Ordering</h1>
+            <p className="mt-5 max-w-xl text-base text-white/88 sm:text-lg">Owners manage menus and orders. Customers scan, order, track their token, and review food without making an account.</p>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               <Button onClick={() => navigate("/signup")}><UserPlus size={18} /> Create Restaurant</Button>
               <Button tone="light" onClick={() => navigate(sampleMenuUrl)}><Eye size={18} /> Try Customer Menu</Button>
               <Button tone="dark" onClick={() => navigate("/dashboard")}><BarChart3 size={18} /> Owner Dashboard</Button>
@@ -160,8 +160,8 @@ function Landing({ navigate, restaurant }: { navigate: (to: string) => void; res
               {[["Live", "Orders"], ["Table", "QR"], ["Food", "Ratings"]].map(([big, small]) => <div key={big} className="rounded-md border border-white/15 bg-white/12 p-3 backdrop-blur"><p className="text-2xl font-black">{big}</p><p className="text-xs uppercase text-white/72">{small}</p></div>)}
             </div>
           </div>
-          <div className="relative hidden lg:block">
-            <div className="animate-float rounded-md border border-white/18 bg-white/14 p-4 shadow-soft backdrop-blur-xl">
+          <div className="relative mx-auto block w-full max-w-lg lg:max-w-none">
+            <div className="animate-float rounded-md border border-white/18 bg-white/14 p-3 shadow-soft backdrop-blur-xl sm:p-4">
               <img src="https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?auto=format&fit=crop&w=800&q=85" className="aspect-[4/3] w-full rounded-md object-cover" />
               <div className="mt-4 rounded-md bg-white p-4 text-ink">
                 <div className="flex items-start justify-between">
@@ -299,21 +299,26 @@ function Dashboard({ state, setState, navigate, route, notify }: CommonProps & {
     ["overview", Home, "Overview"], ["orders", Bell, "Orders"], ["kitchen", ChefHat, "Kitchen"], ["menu", Utensils, "Menu"],
     ["categories", MenuIcon, "Categories"], ["ratings", Star, "Ratings"], ["qr", QrCode, "QR Code"], ["profile", Store, "Profile"], ["settings", Settings, "Settings"],
   ] as const;
-  return <main className="min-h-screen bg-porcelain text-ink lg:grid lg:grid-cols-[260px_1fr]">
-    <aside className="sticky top-0 z-20 border-b border-stone-200 bg-white p-4 lg:h-screen lg:border-b-0 lg:border-r">
+  return <main className="min-h-screen bg-porcelain text-ink lg:grid lg:grid-cols-[280px_1fr]">
+    <aside className="sticky top-0 z-20 border-b border-stone-800 bg-ink p-4 text-white lg:h-screen lg:border-b-0 lg:border-r">
       <div className="flex items-center justify-between lg:block">
         <button onClick={() => navigate("/")} className="flex items-center gap-2 text-xl font-black"><ChefHat className="text-flame" /> {restaurant.name}</button>
+        <p className="mt-2 hidden text-xs font-semibold uppercase text-white/45 lg:block">Restaurant Operations</p>
         <Button tone="light" className="lg:hidden" onClick={() => navigate(`/menu/${restaurant.id}?table=12`)}><QrCode size={18} /></Button>
       </div>
       <nav className="mt-4 flex gap-2 overflow-x-auto scrollbar-hide lg:block lg:space-y-1">
-        {nav.map(([key, Icon, label]) => <button key={key} onClick={() => navigate(key === "overview" ? "/dashboard" : `/dashboard/${key}`)} className={`flex min-h-11 shrink-0 items-center gap-3 rounded-md px-3 text-sm font-semibold lg:w-full ${page === key ? "bg-flame text-white" : "hover:bg-stone-100"}`}><Icon size={18} /> {label}</button>)}
+        {nav.map(([key, Icon, label]) => <button key={key} onClick={() => navigate(key === "overview" ? "/dashboard" : `/dashboard/${key}`)} className={`flex min-h-11 shrink-0 items-center gap-3 rounded-md px-3 text-sm font-semibold transition lg:w-full ${page === key ? "bg-flame text-white shadow-lift" : "text-white/72 hover:bg-white/10 hover:text-white"}`}><Icon size={18} /> {label}</button>)}
       </nav>
+      <div className="mt-6 hidden rounded-md border border-white/10 bg-white/5 p-3 lg:block">
+        <p className="text-xs font-bold uppercase text-white/45">Status</p>
+        <p className="mt-1 font-black text-basil">{restaurant.status === "open" ? "Open for orders" : "Closed"}</p>
+      </div>
       <Button tone="light" className="mt-5 hidden w-full lg:flex" onClick={() => setState({ ...state, currentOwnerId: undefined })}><LogOut size={18} /> Logout</Button>
     </aside>
-    <section className="p-5 lg:p-8">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div><p className="text-sm font-bold uppercase text-flame">Owner Dashboard</p><h1 className="text-3xl font-black capitalize">{page}</h1></div>
-        <Button tone="light" onClick={() => navigate(`/menu/${restaurant.id}?table=12`)}><QrCode size={18} /> Open QR Menu</Button>
+    <section className="min-w-0 p-4 sm:p-5 lg:p-8">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 pb-5">
+        <div className="min-w-0"><p className="text-sm font-bold uppercase text-flame">Owner Dashboard</p><h1 className="text-3xl font-black capitalize tracking-tight">{page}</h1><p className="mt-1 break-words text-sm text-stone-500">{restaurant.name} · {restaurant.address}</p></div>
+        <Button tone="light" className="w-full sm:w-auto" onClick={() => navigate(`/menu/${restaurant.id}?table=12`)}><QrCode size={18} /> Open QR Menu</Button>
       </div>
       {page === "overview" && <Overview state={state} restaurant={restaurant} />}
       {page === "orders" && <OrdersPanel state={state} setState={setState} restaurant={restaurant} />}
@@ -333,12 +338,12 @@ function Overview({ state, restaurant }: { state: AppState; restaurant: Restaura
   const foods = state.foods.filter((item) => item.restaurantId === restaurant.id);
   const avg = foods.length ? foods.reduce((s, f) => s + f.averageRating, 0) / foods.length : 0;
   const stats = [
-    ["Today's orders", orders.length], ["Pending orders", orders.filter((o) => o.orderStatus === "PLACED").length],
-    ["Preparing orders", orders.filter((o) => o.orderStatus === "PREPARING").length], ["Ready orders", orders.filter((o) => o.orderStatus === "READY").length],
-    ["Completed orders", orders.filter((o) => o.orderStatus === "COMPLETED").length], ["Today's sales", currency.format(orders.filter((o) => o.orderStatus !== "REJECTED").reduce((s, o) => s + o.totalAmount, 0))],
-    ["Total menu items", foods.length], ["Average rating", avg.toFixed(1)],
-  ];
-  return <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">{stats.map(([label, value]) => <div key={label} className="rounded-md border border-stone-200 bg-white p-5 shadow-soft"><p className="text-sm text-stone-500">{label}</p><p className="mt-2 text-3xl font-black">{value}</p></div>)}<div className="rounded-md border border-stone-200 bg-white p-5 shadow-soft md:col-span-2 xl:col-span-4"><h2 className="font-black">Popular food items</h2><div className="mt-3 grid gap-3 sm:grid-cols-3">{foods.sort((a,b)=>b.totalRatings-a.totalRatings).slice(0,3).map(food=><FoodMini key={food.id} food={food} />)}</div></div></div>;
+    ["Today's orders", orders.length, Bell], ["Pending orders", orders.filter((o) => o.orderStatus === "PLACED").length, Clock],
+    ["Preparing orders", orders.filter((o) => o.orderStatus === "PREPARING").length, ChefHat], ["Ready orders", orders.filter((o) => o.orderStatus === "READY").length, PackageCheck],
+    ["Completed orders", orders.filter((o) => o.orderStatus === "COMPLETED").length, ShoppingCart], ["Today's sales", currency.format(orders.filter((o) => o.orderStatus !== "REJECTED").reduce((s, o) => s + o.totalAmount, 0)), CreditCard],
+    ["Total menu items", foods.length, Utensils], ["Average rating", avg.toFixed(1), Star],
+  ] as const;
+  return <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">{stats.map(([label, value, Icon]) => <div key={label} className="rounded-md border border-stone-200 bg-white p-5 shadow-soft transition hover:-translate-y-0.5 hover:shadow-lift"><div className="flex items-start justify-between gap-3"><p className="text-sm font-semibold text-stone-500">{label}</p><span className="grid h-10 w-10 place-items-center rounded-md bg-flame/10 text-flame"><Icon size={19} /></span></div><p className="mt-2 text-3xl font-black tracking-tight">{value}</p></div>)}<div className="rounded-md border border-stone-200 bg-white p-5 shadow-soft md:col-span-2 xl:col-span-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-black">Popular food items</h2><p className="text-sm text-stone-500">Based on verified item ratings</p></div><span className="rounded-md bg-basil/10 px-3 py-1 text-sm font-black text-basil">{foods.length} active items</span></div><div className="mt-4 grid gap-3 sm:grid-cols-3">{foods.sort((a,b)=>b.totalRatings-a.totalRatings).slice(0,3).map(food=><FoodMini key={food.id} food={food} />)}</div></div></div>;
 }
 
 function FoodMini({ food }: { food: Food }) {
@@ -426,7 +431,7 @@ function MenuManager({ state, setState, restaurant, notify }: { state: AppState;
 
 function CategoryManager({ state, setState, restaurant, notify }: { state: AppState; setState: (state: AppState) => void; restaurant: Restaurant; notify: (message: string) => void }) {
   const categories = state.categories.filter((item) => item.restaurantId === restaurant.id).sort((a, b) => a.sortOrder - b.sortOrder);
-  return <div className="rounded-md border border-stone-200 bg-white p-5 shadow-soft"><form onSubmit={(event) => { event.preventDefault(); const name = new FormData(event.currentTarget).get("name") as string; setState(addCategory(state, restaurant.id, name)); event.currentTarget.reset(); notify("Category added."); }} className="mb-5 flex gap-2"><Input name="name" placeholder="New category" required /><Button><Plus size={18} /> Add</Button></form><div className="grid gap-3">{categories.map((cat, index) => <div key={cat.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-stone-100 p-3"><Input value={cat.name} onChange={(e) => setState({ ...state, categories: state.categories.map(item => item.id === cat.id ? { ...item, name: e.target.value } : item) })} className="max-w-xs" /><div className="flex gap-2"><Button tone="light" onClick={() => setState({ ...state, categories: state.categories.map(item => item.id === cat.id ? { ...item, active: !item.active } : item) })}>{cat.active ? "Hide" : "Show"}</Button><Button tone="light" disabled={index === 0} onClick={() => setState({ ...state, categories: state.categories.map(item => item.id === cat.id ? { ...item, sortOrder: item.sortOrder - 1 } : item) })}>Up</Button><Button tone="danger" onClick={() => setState({ ...state, categories: state.categories.filter(item => item.id !== cat.id) })}>Delete</Button></div></div>)}</div></div>;
+  return <div className="rounded-md border border-stone-200 bg-white p-5 shadow-soft"><form onSubmit={(event) => { event.preventDefault(); const name = new FormData(event.currentTarget).get("name") as string; setState(addCategory(state, restaurant.id, name)); event.currentTarget.reset(); notify("Category added."); }} className="mb-5 flex flex-col gap-2 sm:flex-row"><Input name="name" placeholder="New category" required /><Button className="w-full sm:w-auto"><Plus size={18} /> Add</Button></form><div className="grid gap-3">{categories.map((cat, index) => <div key={cat.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-stone-100 p-3"><Input value={cat.name} onChange={(e) => setState({ ...state, categories: state.categories.map(item => item.id === cat.id ? { ...item, name: e.target.value } : item) })} className="max-w-xs" /><div className="flex flex-wrap gap-2"><Button tone="light" onClick={() => setState({ ...state, categories: state.categories.map(item => item.id === cat.id ? { ...item, active: !item.active } : item) })}>{cat.active ? "Hide" : "Show"}</Button><Button tone="light" disabled={index === 0} onClick={() => setState({ ...state, categories: state.categories.map(item => item.id === cat.id ? { ...item, sortOrder: item.sortOrder - 1 } : item) })}>Up</Button><Button tone="danger" onClick={() => setState({ ...state, categories: state.categories.filter(item => item.id !== cat.id) })}>Delete</Button></div></div>)}</div></div>;
 }
 
 function RatingsPanel({ state, restaurant }: { state: AppState; restaurant: Restaurant }) {
@@ -488,6 +493,7 @@ function CustomerMenu({ state, setState, restaurantId, navigate, notify }: Commo
   const foods = state.foods.filter((food) => food.restaurantId === activeRestaurant.id && food.available && (category === "All" || food.categoryId === category) && food.name.toLowerCase().includes(search.toLowerCase()));
   const subtotal = cart.reduce((sum, line) => sum + (state.foods.find((food) => food.id === line.foodId)?.price || 0) * line.quantity, 0);
   const table = params.get("table") || "";
+  const cartCount = cart.reduce((s, line) => s + line.quantity, 0);
   const add = (foodId: string, quantity = 1) => setCart((lines) => lines.some((line) => line.foodId === foodId) ? lines.map((line) => line.foodId === foodId ? { ...line, quantity: Math.max(0, line.quantity + quantity) } : line).filter((line) => line.quantity > 0) : [...lines, { foodId, quantity }]);
   const openVideo = (url: string) => {
     if (isYouTubeUrl(url)) {
@@ -504,7 +510,75 @@ function CustomerMenu({ state, setState, restaurantId, navigate, notify }: Commo
     notify(`Order #${created.order.tokenNumber} placed.`);
     navigate(`/order/${created.order.id}`);
   }
-  return <main className="min-h-screen bg-porcelain pb-32"><header className="relative overflow-hidden"><img src={restaurant.coverImage} className="h-56 w-full object-cover" /><div className="absolute inset-0 bg-gradient-to-t from-black/75 to-transparent" /><div className="absolute bottom-4 left-4 right-4 text-white"><div className="flex items-end gap-3">{restaurant.logo && <img src={restaurant.logo} className="h-16 w-16 rounded-md object-cover" />}<div><h1 className="text-3xl font-black">{restaurant.name}</h1><p className="text-sm text-white/85">{restaurant.address} · {restaurant.status === "open" ? "Open" : "Closed"}</p></div></div></div></header>{restaurant.status === "closed" ? <div className="mx-4 mt-5 rounded-md bg-red-100 p-4 font-bold text-red-700">Restaurant is currently closed.</div> : <><section className="sticky top-0 z-10 bg-porcelain/95 px-4 py-3 backdrop-blur"><div className="relative"><Search className="absolute left-3 top-3 text-stone-400" size={18} /><Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search food" className="pl-10" /></div><div className="mt-3 flex gap-2 overflow-x-auto scrollbar-hide"><button onClick={() => setCategory("All")} className={`min-h-10 shrink-0 rounded-md px-4 font-bold ${category === "All" ? "bg-ink text-white" : "bg-white"}`}>All</button>{categories.map(cat => <button key={cat.id} onClick={() => setCategory(cat.id)} className={`min-h-10 shrink-0 rounded-md px-4 font-bold ${category === cat.id ? "bg-ink text-white" : "bg-white"}`}>{cat.name}</button>)}</div></section><section className="grid gap-4 px-4 pt-2 sm:grid-cols-2 lg:mx-auto lg:max-w-5xl">{foods.map(food => <article key={food.id} className="overflow-hidden rounded-md border border-stone-200 bg-white shadow-soft"><img src={food.imageUrl || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=700&q=85"} className="aspect-[4/3] w-full object-cover" /><div className="p-4"><div className="flex justify-between gap-3"><div><h2 className="text-xl font-black">{food.name}</h2><p className="font-black text-flame">{currency.format(food.price)}</p></div><p className="text-sm font-bold"><Star size={15} className="inline fill-amber-400 text-amber-400" /> {food.averageRating} ({food.totalRatings})</p></div><p className="mt-2 text-sm text-stone-600">{food.description}</p><div className="mt-4 flex items-center justify-between gap-2">{food.videoUrl ? <Button tone="light" onClick={() => openVideo(food.videoUrl)}><Video size={16} /> Watch Video</Button> : <span className="text-sm text-stone-400">No video</span>}<div className="flex items-center gap-2"><Button tone="light" onClick={() => add(food.id, -1)}><Minus size={16} /></Button><span className="w-7 text-center font-black">{cart.find(line => line.foodId === food.id)?.quantity || 0}</span><Button onClick={() => add(food.id)}><Plus size={16} /></Button></div></div></div></article>)}</section></>}{cart.length > 0 && <div className="fixed inset-x-0 bottom-0 z-20 border-t border-stone-200 bg-white p-4 shadow-soft"><div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3"><div><p className="font-black"><ShoppingCart className="inline" size={18} /> Cart · {cart.reduce((s, line) => s + line.quantity, 0)} items</p><p className="text-sm text-stone-500">Table {table || "Takeaway"} · Subtotal {currency.format(subtotal)}</p></div><select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)} className="min-h-11 rounded-md border border-stone-200 px-3"><option>Cash</option><option>Online Payment</option></select><Button onClick={placeOrder}><CreditCard size={18} /> Place Order</Button></div></div>}{video && <div className="fixed inset-0 z-40 grid place-items-center bg-black/70 p-4"><div className="w-full max-w-xl rounded-md bg-white p-3"><div className="mb-2 flex justify-end"><Button tone="light" onClick={() => setVideo(null)}><X size={18} /></Button></div><video src={video} controls autoPlay className="w-full rounded-md" /></div></div>}</main>;
+  return <main className="min-h-screen bg-porcelain pb-32">
+    <header className="relative overflow-hidden">
+      <img src={restaurant.coverImage} className="h-72 w-full object-cover sm:h-80" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent" />
+      <div className="absolute bottom-5 left-4 right-4 text-white sm:bottom-7">
+        <div className="mx-auto flex max-w-5xl items-end gap-4">
+          {restaurant.logo && <img src={restaurant.logo} className="h-20 w-20 rounded-md border-2 border-white/80 object-cover shadow-lift" />}
+          <div className="min-w-0">
+            <div className="mb-2 inline-flex rounded-md bg-white/15 px-3 py-1 text-xs font-black uppercase backdrop-blur">{restaurant.status === "open" ? "Open now" : "Closed"}</div>
+            <h1 className="text-4xl font-black tracking-tight">{restaurant.name}</h1>
+            <p className="mt-1 text-sm text-white/85">{restaurant.address} · Table {table || "Takeaway"}</p>
+          </div>
+        </div>
+      </div>
+    </header>
+    {restaurant.status === "closed" ? <div className="mx-4 mt-5 rounded-md bg-red-100 p-4 font-bold text-red-700">Restaurant is currently closed.</div> : <>
+      <section className="sticky top-0 z-10 border-b border-stone-200 bg-porcelain/95 px-4 py-4 backdrop-blur">
+        <div className="mx-auto max-w-5xl">
+          <div className="relative">
+            <Search className="absolute left-3 top-3 text-stone-400" size={18} />
+            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search dishes, drinks, and desserts" className="pl-10" />
+          </div>
+          <div className="mt-3 flex gap-2 overflow-x-auto scrollbar-hide">
+            <button onClick={() => setCategory("All")} className={`min-h-10 shrink-0 rounded-md px-4 text-sm font-black transition ${category === "All" ? "bg-ink text-white shadow-lift" : "bg-white text-stone-700 shadow-sm hover:text-flame"}`}>All</button>
+            {categories.map(cat => <button key={cat.id} onClick={() => setCategory(cat.id)} className={`min-h-10 shrink-0 rounded-md px-4 text-sm font-black transition ${category === cat.id ? "bg-ink text-white shadow-lift" : "bg-white text-stone-700 shadow-sm hover:text-flame"}`}>{cat.name}</button>)}
+          </div>
+        </div>
+      </section>
+      <section className="grid gap-5 px-4 pt-5 sm:grid-cols-2 lg:mx-auto lg:max-w-5xl">
+        {foods.map(food => <article key={food.id} className="group overflow-hidden rounded-md border border-stone-200 bg-white shadow-soft transition hover:-translate-y-0.5 hover:shadow-lift">
+          <div className="relative">
+            <img src={food.imageUrl || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=700&q=85"} className="aspect-[4/3] w-full object-cover transition duration-500 group-hover:scale-105" />
+            <span className="absolute right-3 top-3 rounded-md bg-white/95 px-2 py-1 text-xs font-black text-ink shadow-sm">{food.preparationTime} min</span>
+          </div>
+          <div className="p-4">
+            <div className="flex justify-between gap-3">
+              <div><h2 className="text-xl font-black tracking-tight">{food.name}</h2><p className="font-black text-flame">{currency.format(food.price)}</p></div>
+              <p className="shrink-0 text-sm font-bold"><Star size={15} className="inline fill-amber-400 text-amber-400" /> {food.averageRating} ({food.totalRatings})</p>
+            </div>
+            <p className="mt-2 line-clamp-2 text-sm leading-6 text-stone-600">{food.description}</p>
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+              {food.videoUrl ? <Button tone="light" className="flex-1 sm:flex-none" onClick={() => openVideo(food.videoUrl)}><Video size={16} /> Watch Video</Button> : <span className="text-sm text-stone-400">No video</span>}
+              <div className="flex items-center gap-2 rounded-md bg-stone-50 p-1">
+                <Button tone="light" className="h-9 min-h-9 w-9 px-0" onClick={() => add(food.id, -1)}><Minus size={16} /></Button>
+                <span className="w-7 text-center font-black">{cart.find(line => line.foodId === food.id)?.quantity || 0}</span>
+                <Button className="h-9 min-h-9 w-9 px-0" onClick={() => add(food.id)}><Plus size={16} /></Button>
+              </div>
+            </div>
+          </div>
+        </article>)}
+      </section>
+    </>}
+    {cart.length > 0 && <div className="fixed inset-x-0 bottom-0 z-20 border-t border-stone-200 bg-white/95 p-4 shadow-lift backdrop-blur">
+      <div className="mx-auto flex max-w-5xl flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <div><p className="font-black"><ShoppingCart className="inline" size={18} /> Cart · {cartCount} items</p><p className="text-sm text-stone-500">Table {table || "Takeaway"} · Subtotal {currency.format(subtotal)}</p></div>
+        <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)} className="min-h-11 rounded-md border border-stone-200 bg-white px-3 shadow-sm">
+          <option>Cash</option>
+          <option>Online Payment</option>
+        </select>
+        <Button className="w-full sm:w-auto" onClick={placeOrder}><CreditCard size={18} /> Place Order</Button>
+      </div>
+    </div>}
+    {video && <div className="fixed inset-0 z-40 grid place-items-center bg-black/70 p-4">
+      <div className="w-full max-w-xl rounded-md bg-white p-3">
+        <div className="mb-2 flex justify-end"><Button tone="light" onClick={() => setVideo(null)}><X size={18} /></Button></div>
+        <video src={video} controls autoPlay className="w-full rounded-md" />
+      </div>
+    </div>}
+  </main>;
 }
 
 function OrderTracking({ state, setState, orderId, navigate, notify }: CommonProps & { orderId: string }) {

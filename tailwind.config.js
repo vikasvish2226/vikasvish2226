@@ -4,12 +4,15 @@ export default {
   theme: {
     extend: {
       colors: {
-        flame: "#FF6B35",
-        ink: "#1F1F1F",
-        porcelain: "#FFF9F5",
+        flame: "#E85D2A",
+        ink: "#151515",
+        porcelain: "#F8F4EF",
+        saffron: "#F4A261",
+        basil: "#2E7D5B",
       },
       boxShadow: {
-        soft: "0 14px 45px rgba(31, 31, 31, 0.09)",
+        soft: "0 18px 55px rgba(21, 21, 21, 0.10)",
+        lift: "0 18px 36px rgba(21, 21, 21, 0.14)",
       },
     },
   },
