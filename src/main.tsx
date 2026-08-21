@@ -141,22 +141,22 @@ function Landing({ navigate, restaurant }: { navigate: (to: string) => void; res
         </div>
       </nav>
 
-      <section className="relative flex min-h-[1120px] items-center overflow-hidden pt-16 sm:min-h-[90vh]">
+      <section className="relative flex min-h-[900px] items-center overflow-hidden pt-16 sm:min-h-[90vh]">
         <img src="https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=1800&q=85" className="absolute inset-0 h-full w-full scale-105 object-cover object-[62%_center] landing-kenburns sm:object-center" />
         <div className="absolute inset-0 bg-gradient-to-b from-black/75 via-black/55 to-black/80 sm:bg-gradient-to-r sm:from-black/80 sm:via-black/50 sm:to-black/15" />
-        <div className="relative mx-auto grid w-full max-w-6xl items-center gap-10 px-5 py-14 text-white sm:py-16 lg:grid-cols-[1.05fr_0.95fr]">
+        <div className="relative mx-auto grid w-full max-w-6xl items-center gap-7 px-4 py-8 text-white sm:gap-10 sm:px-5 sm:py-16 lg:grid-cols-[1.05fr_0.95fr]">
           <div className="max-w-2xl animate-rise">
-            <div className="mb-4 inline-flex items-center gap-2 rounded-md bg-white/14 px-3 py-2 text-sm backdrop-blur">
+            <div className="mb-3 inline-flex items-center gap-2 rounded-md bg-white/14 px-3 py-2 text-xs backdrop-blur sm:mb-4 sm:text-sm">
               <QrCode size={16} /> QR menu, online ordering, and kitchen tokens
             </div>
-            <h1 className="text-4xl font-black leading-tight sm:text-7xl">Restaurant QR Ordering</h1>
-            <p className="mt-5 max-w-xl text-base text-white/88 sm:text-lg">Owners manage menus and orders. Customers scan, order, track their token, and review food without making an account.</p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+            <h1 className="text-3xl font-black leading-tight sm:text-7xl">Restaurant QR Ordering</h1>
+            <p className="mt-4 max-w-xl text-sm leading-6 text-white/88 sm:mt-5 sm:text-lg sm:leading-normal">Owners manage menus and orders. Customers scan, order, track their token, and review food without making an account.</p>
+            <div className="mt-6 flex flex-col gap-3 sm:mt-8 sm:flex-row sm:flex-wrap">
               <Button onClick={() => navigate("/signup")}><UserPlus size={18} /> Create Restaurant</Button>
               <Button tone="light" onClick={() => navigate(sampleMenuUrl)}><Eye size={18} /> Try Customer Menu</Button>
               <Button tone="dark" onClick={() => navigate("/dashboard")}><BarChart3 size={18} /> Owner Dashboard</Button>
             </div>
-            <div className="mt-8 grid max-w-lg grid-cols-3 gap-3 text-center">
+            <div className="mt-6 grid max-w-lg grid-cols-3 gap-2 text-center sm:mt-8 sm:gap-3">
               {[["Live", "Orders"], ["Table", "QR"], ["Food", "Ratings"]].map(([big, small]) => <div key={big} className="rounded-md border border-white/15 bg-white/12 p-3 backdrop-blur"><p className="text-2xl font-black">{big}</p><p className="text-xs uppercase text-white/72">{small}</p></div>)}
             </div>
           </div>
