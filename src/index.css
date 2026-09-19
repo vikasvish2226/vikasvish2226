@@ -28,28 +28,76 @@ body {
 
 @media (max-width: 420px) {
   .landing-nav-brand {
-    gap: 0.5rem;
+    gap: 0.45rem;
+    max-width: calc(100% - 12.5rem);
   }
 
   .landing-nav-brand > span:last-child {
-    font-size: 1.15rem;
+    font-size: 1.08rem;
   }
 
   .landing-nav-actions {
-    gap: 0.5rem;
+    gap: 0.45rem;
   }
 
   .landing-nav-icon,
   .landing-nav-menu {
-    width: 2.75rem;
-    height: 2.75rem;
+    width: 2.7rem;
+    height: 2.7rem;
   }
 
   .landing-nav-cta {
     padding-left: 0.9rem;
     padding-right: 0.9rem;
-    font-size: 0.82rem;
+    font-size: 0.76rem;
     min-width: 0;
+  }
+
+  .hero-badge {
+    max-width: 100%;
+    font-size: 0.58rem;
+    letter-spacing: 0.12em;
+    white-space: normal;
+  }
+
+  .hero-title {
+    max-width: 7ch;
+    line-height: 0.9;
+  }
+
+  .hero-copy {
+    font-size: 0.98rem;
+    line-height: 1.6;
+  }
+
+  .hero-actions {
+    gap: 0.8rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .landing-nav-brand {
+    max-width: calc(100% - 11rem);
+  }
+
+  .landing-nav-brand > span:last-child {
+    font-size: 0.95rem;
+  }
+
+  .landing-nav-cta {
+    padding-left: 0.7rem;
+    padding-right: 0.7rem;
+    font-size: 0.7rem;
+  }
+
+  .hero-badge {
+    font-size: 0.52rem;
+    padding-left: 0.8rem;
+    padding-right: 0.8rem;
+  }
+
+  .hero-title {
+    font-size: clamp(2.5rem, 18vw, 4rem);
   }
 }
 
