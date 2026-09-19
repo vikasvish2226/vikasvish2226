@@ -55,15 +55,15 @@ export default function Landing({ navigate, restaurant, state }: LandingProps) {
   const goToMenu = () => navigate(`${menuUrl}${search ? `&search=${encodeURIComponent(search)}` : ""}`);
 
   return <main id="top" className="landing-page min-h-screen overflow-x-hidden bg-[#080808] text-white">
-    <nav className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-[#080808]/78 text-white backdrop-blur-xl">
-      <div className="mx-auto flex min-h-[68px] w-full max-w-[1400px] items-center justify-between gap-3 px-4 sm:px-6 lg:min-h-[78px] lg:px-10">
-        <button onClick={() => navigate("/")} className="flex min-w-0 items-center gap-2.5 text-base font-black tracking-tight sm:text-lg"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-flame shadow-[0_0_28px_rgba(255,90,31,.38)]"><QrCode size={18} /></span><span>QR Kitchen</span></button>
+    <nav className="landing-nav fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-[#080808]/78 text-white backdrop-blur-xl">
+      <div className="mx-auto flex min-h-[68px] w-full max-w-[1400px] items-center justify-between gap-2 px-4 sm:px-6 lg:min-h-[78px] lg:px-10">
+        <button onClick={() => navigate("/")} className="landing-nav-brand flex min-w-0 items-center gap-2.5 text-base font-black tracking-tight sm:text-lg"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-flame shadow-[0_0_28px_rgba(255,90,31,.38)]"><QrCode size={18} /></span><span className="truncate">QR Kitchen</span></button>
         <div className="hidden items-center gap-5 text-sm font-bold text-white/65 lg:flex xl:gap-7">{navItems.map(([label, id]) => <a key={id} href={`#${id}`} className="transition hover:text-white">{label}</a>)}</div>
-        <div className="flex items-center gap-2">
-          <button onClick={() => document.querySelector<HTMLInputElement>("#home-search input")?.focus()} aria-label="Focus menu search" className="grid h-11 w-11 place-items-center rounded-xl border border-white/15 text-white/75 transition hover:border-white/40 hover:text-white lg:hidden"><Search size={19} /></button>
+        <div className="landing-nav-actions flex items-center gap-2">
+          <button onClick={() => document.querySelector<HTMLInputElement>("#home-search input")?.focus()} aria-label="Focus menu search" className="landing-nav-icon grid h-11 w-11 place-items-center rounded-xl border border-white/15 text-white/75 transition hover:border-white/40 hover:text-white lg:hidden"><Search size={19} /></button>
           <button onClick={() => navigate("/login")} className="hidden px-2 text-sm font-bold text-white/70 transition hover:text-white lg:block">Login</button>
-          <ActionButton onClick={() => navigate("/signup")} className="hidden sm:inline-flex">Get Started <ArrowRight size={16} /></ActionButton>
-          <button onClick={() => setMenuOpen(!menuOpen)} aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"} aria-expanded={menuOpen} className="grid h-11 w-11 place-items-center rounded-xl border border-white/15 text-white lg:hidden">{menuOpen ? <X size={19} /> : <MenuIcon size={19} />}</button>
+          <ActionButton onClick={() => navigate("/signup")} className="landing-nav-cta hidden sm:inline-flex">Get Started <ArrowRight size={16} /></ActionButton>
+          <button onClick={() => setMenuOpen(!menuOpen)} aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"} aria-expanded={menuOpen} className="landing-nav-menu grid h-11 w-11 place-items-center rounded-xl border border-white/15 text-white lg:hidden">{menuOpen ? <X size={19} /> : <MenuIcon size={19} />}</button>
         </div>
       </div>
       <div className={`overflow-hidden border-t border-white/10 bg-[#101010] transition-[max-height,opacity] duration-300 lg:hidden ${menuOpen ? "max-h-[520px] opacity-100" : "max-h-0 opacity-0"}`}>

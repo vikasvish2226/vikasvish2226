@@ -26,6 +26,33 @@ body {
   background: #080808;
 }
 
+@media (max-width: 420px) {
+  .landing-nav-brand {
+    gap: 0.5rem;
+  }
+
+  .landing-nav-brand > span:last-child {
+    font-size: 1.15rem;
+  }
+
+  .landing-nav-actions {
+    gap: 0.5rem;
+  }
+
+  .landing-nav-icon,
+  .landing-nav-menu {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
+  .landing-nav-cta {
+    padding-left: 0.9rem;
+    padding-right: 0.9rem;
+    font-size: 0.82rem;
+    min-width: 0;
+  }
+}
+
 button, input, textarea, select {
   font: inherit;
 }
