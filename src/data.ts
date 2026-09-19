@@ -291,6 +291,7 @@ export function loadState(): AppState {
 
 export function saveState(state: AppState) {
   localStorage.setItem(KEY, JSON.stringify(state));
+  window.dispatchEvent(new Event("restaurant-state-updated"));
 }
 
 export function createOwner(state: AppState, form: Record<string, string>): AppState {
@@ -301,6 +302,8 @@ export function createOwner(state: AppState, form: Record<string, string>): AppS
     phone: form.mobile,
     password: form.password,
     restaurantId: id("restaurant"),
+    googleUid: form.googleUid || undefined,
+    photoURL: form.photoURL || undefined,
   };
   const restaurant: Restaurant = {
     id: owner.restaurantId,
@@ -368,6 +371,7 @@ export function createOrder(state: AppState, restaurantIdValue: string, tableNum
     orderStatus: "PLACED",
     customerSessionId: getCustomerSessionId(),
     createdAt: now(),
+    orderType: tableNumber ? "Dine-in" : "Takeaway",
   };
   return { state: { ...state, orders: [order, ...state.orders] }, order };
 }

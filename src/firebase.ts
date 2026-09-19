@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, signInWithPopup, type UserCredential } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
@@ -17,3 +17,10 @@ export const firebaseApp = firebaseEnabled ? initializeApp(firebaseConfig) : nul
 export const auth = firebaseApp ? getAuth(firebaseApp) : null;
 export const db = firebaseApp ? getFirestore(firebaseApp) : null;
 export const storage = firebaseApp ? getStorage(firebaseApp) : null;
+export const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: "select_account" });
+
+export async function signInWithGoogle(): Promise<UserCredential> {
+  if (!auth) throw new Error("Google sign-in is not configured. Add the Firebase environment variables first.");
+  return signInWithPopup(auth, googleProvider);
+}

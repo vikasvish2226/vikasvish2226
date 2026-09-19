@@ -10,6 +10,8 @@ export interface Owner {
   phone: string;
   password: string;
   restaurantId: string;
+  googleUid?: string;
+  photoURL?: string;
 }
 
 export interface Restaurant {
@@ -78,6 +80,8 @@ export interface Order {
   customerSessionId: string;
   ratingSubmitted?: boolean;
   createdAt: string;
+  orderType?: "Dine-in" | "Takeaway";
+  profit?: number;
 }
 
 export interface Rating {
