@@ -35,6 +35,7 @@ import {
 import "./index.css";
 import Landing from "./Landing";
 import { addCategory, addRatings, createOrder, createOwner, loadState, saveState, upsertFood } from "./data";
+import { loadRemoteAppState } from "./services/api";
 import { firebaseEnabled, signInWithGoogle } from "./firebase";
 import type { AppState, CartLine, Food, Order, OrderStatus, PaymentMethod, Restaurant } from "./types";
 
@@ -78,6 +79,34 @@ function App() {
       window.removeEventListener("storage", sync);
       window.removeEventListener("restaurant-state-updated", sync);
       window.clearInterval(timer);
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    loadRemoteAppState().then((remote) => {
+      if (!active || !remote) return;
+      const hasRemoteData = Boolean(
+        remote.restaurants?.length ||
+        remote.foods?.length ||
+        remote.categories?.length ||
+        remote.orders?.length ||
+        remote.ratings?.length
+      );
+
+      if (!hasRemoteData) return;
+
+      setStateValue((current) => ({
+        ...current,
+        ...remote,
+        owners: current.owners,
+        currentOwnerId: current.currentOwnerId,
+      }));
+    }).catch(() => undefined);
+
+    return () => {
+      active = false;
     };
   }, []);
 
@@ -267,14 +296,45 @@ function LegacyLanding({ navigate, restaurant }: { navigate: (to: string) => voi
 }
 
 function Login({ state, setState, navigate, notify }: CommonProps) {
-  function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(event.currentTarget).entries()) as Record<string, string>;
-    const owner = state.owners.find((item) => item.email === data.email.toLowerCase() && item.password === data.password);
-    if (!owner) return notify("Login failed. Try owner@demo.com / password123.");
-    setState({ ...state, currentOwnerId: owner.id });
-    notify("Welcome back.");
-    navigate("/dashboard");
+    const email = data.email.toLowerCase();
+
+    try {
+      const response = await fetch('/api/users/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password: data.password }),
+      });
+
+      const user = await response.json();
+      if (!response.ok) {
+        throw new Error(user?.message || 'Login failed.');
+      }
+
+      const owner = state.owners.find((item) => item.email === email) || {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: '',
+        password: data.password,
+        restaurantId: user.restaurantId || 'restaurant-db',
+      };
+
+      setState({ ...state, currentOwnerId: owner.id, owners: [...state.owners.filter((item) => item.email !== email), owner] });
+      notify('Welcome back.');
+      navigate('/dashboard');
+    } catch (error) {
+      const owner = state.owners.find((item) => item.email === email && item.password === data.password);
+      if (owner) {
+        setState({ ...state, currentOwnerId: owner.id });
+        notify('Welcome back.');
+        navigate('/dashboard');
+        return;
+      }
+      notify(error instanceof Error ? error.message : 'Login failed. Try owner@demo.com / password123.');
+    }
   }
   async function googleLogin() {
     if (!firebaseEnabled) return notify("Google sign-in needs Firebase configuration.");
@@ -305,15 +365,54 @@ function Login({ state, setState, navigate, notify }: CommonProps) {
 
 function Signup({ state, setState, navigate, notify }: CommonProps) {
   const [googleProfile, setGoogleProfile] = useState<GoogleProfile | null>(() => readGoogleProfile());
-  function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(event.currentTarget).entries()) as Record<string, string>;
     if (!googleProfile && data.password !== data.confirmPassword) return notify("Passwords do not match.");
-    const next = createOwner(state, googleProfile ? { ...data, ownerName: googleProfile.name, email: googleProfile.email, password: "", googleUid: googleProfile.uid, photoURL: googleProfile.photoURL } : data);
-    setState(next);
-    clearGoogleProfile();
-    notify("Restaurant profile and QR route created.");
-    navigate("/dashboard");
+
+    try {
+      const payload = {
+        name: googleProfile ? googleProfile.name : data.ownerName,
+        email: (googleProfile ? googleProfile.email : data.email).toLowerCase(),
+        password: googleProfile ? '' : data.password,
+        role: 'owner',
+        googleUid: googleProfile?.uid || null,
+        photoURL: googleProfile?.photoURL || '',
+      };
+
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const savedUser = await response.json();
+      if (!response.ok) {
+        throw new Error(savedUser?.message || 'Unable to save owner profile.');
+      }
+
+      const next = createOwner(state, googleProfile ? { ...data, ownerName: googleProfile.name, email: googleProfile.email, password: '', googleUid: googleProfile.uid, photoURL: googleProfile.photoURL } : data);
+      const mergedOwners = [...next.owners.filter((item) => item.email !== savedUser.email), {
+        ...next.owners[next.owners.length - 1],
+        id: savedUser.id,
+        email: savedUser.email,
+        name: savedUser.name,
+        password: googleProfile ? '' : data.password,
+        googleUid: savedUser.googleUid || googleProfile?.uid,
+        photoURL: savedUser.photoURL || googleProfile?.photoURL,
+      }];
+
+      setState({ ...next, owners: mergedOwners, currentOwnerId: savedUser.id });
+      clearGoogleProfile();
+      notify('Restaurant profile and MongoDB account created.');
+      navigate('/dashboard');
+    } catch (error) {
+      const next = createOwner(state, googleProfile ? { ...data, ownerName: googleProfile.name, email: googleProfile.email, password: '', googleUid: googleProfile.uid, photoURL: googleProfile.photoURL } : data);
+      setState(next);
+      clearGoogleProfile();
+      notify(error instanceof Error ? error.message : 'Restaurant profile and QR route created.');
+      navigate('/dashboard');
+    }
   }
   async function googleSignup() {
     if (!firebaseEnabled) return notify("Google sign-in needs Firebase configuration.");

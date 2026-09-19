@@ -3,6 +3,19 @@ export type OrderStatus = "PLACED" | "ACCEPTED" | "PREPARING" | "READY" | "COMPL
 export type PaymentStatus = "PENDING" | "PAID" | "FAILED";
 export type PaymentMethod = "Cash" | "Online Payment";
 
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  password?: string;
+  role?: "customer" | "owner" | "admin";
+  restaurantId?: string | null;
+  googleUid?: string;
+  photoURL?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface Owner {
   id: string;
   name: string;
