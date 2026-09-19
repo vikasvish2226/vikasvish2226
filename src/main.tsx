@@ -4,6 +4,7 @@ import QRCode from "qrcode";
 import {
   BarChart3,
   Bell,
+  Check,
   ChefHat,
   Clock,
   Copy,
@@ -11,6 +12,7 @@ import {
   Download,
   Pencil,
   Eye,
+  EyeOff,
   Home,
   LogOut,
   Menu as MenuIcon,
@@ -24,27 +26,59 @@ import {
   ShoppingCart,
   Star,
   Store,
+  Smartphone,
   UserPlus,
   Utensils,
   Video,
   X,
 } from "lucide-react";
 import "./index.css";
+import Landing from "./Landing";
 import { addCategory, addRatings, createOrder, createOwner, loadState, saveState, upsertFood } from "./data";
+import { firebaseEnabled, signInWithGoogle } from "./firebase";
 import type { AppState, CartLine, Food, Order, OrderStatus, PaymentMethod, Restaurant } from "./types";
 
 const currency = { format: (value: number) => `INR ${Math.round(value).toLocaleString("en-IN")}` };
 const statusOrder: OrderStatus[] = ["PLACED", "ACCEPTED", "PREPARING", "READY", "COMPLETED"];
 
+type GoogleProfile = { uid: string; name: string; email: string; photoURL: string };
+
+function readGoogleProfile(): GoogleProfile | null {
+  const raw = sessionStorage.getItem("restaurant-qr-google-profile");
+  if (!raw) return null;
+  try { return JSON.parse(raw) as GoogleProfile; } catch { return null; }
+}
+
+function saveGoogleProfile(profile: GoogleProfile) {
+  sessionStorage.setItem("restaurant-qr-google-profile", JSON.stringify(profile));
+}
+
+function clearGoogleProfile() {
+  sessionStorage.removeItem("restaurant-qr-google-profile");
+}
+
 function App() {
   const [state, setStateValue] = useState<AppState>(() => loadState());
   const [path, setPath] = useState(window.location.pathname + window.location.search);
   const [toast, setToast] = useState("");
+  const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
   useEffect(() => {
     const onPop = () => setPath(window.location.pathname + window.location.search);
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
+  useEffect(() => {
+    const sync = () => setStateValue(loadState());
+    window.addEventListener("storage", sync);
+    window.addEventListener("restaurant-state-updated", sync);
+    const timer = window.setInterval(sync, 2000);
+    return () => {
+      window.removeEventListener("storage", sync);
+      window.removeEventListener("restaurant-state-updated", sync);
+      window.clearInterval(timer);
+    };
   }, []);
 
   function setState(next: AppState) {
@@ -53,8 +87,9 @@ function App() {
   }
 
   function navigate(to: string) {
-    window.history.pushState({}, "", to);
-    setPath(to);
+    const target = `${basePath}${to.startsWith("/") ? to : `/${to}`}`;
+    window.history.pushState({}, "", target);
+    setPath(target);
     window.scrollTo({ top: 0 });
   }
 
@@ -63,11 +98,11 @@ function App() {
     window.setTimeout(() => setToast(""), 2600);
   }
 
-  const route = path.split("?")[0];
+  const route = (path.split("?")[0].replace(basePath, "") || "/");
   const owner = state.owners.find((item) => item.id === state.currentOwnerId);
   const restaurant = state.restaurants.find((item) => item.id === owner?.restaurantId) || state.restaurants[0];
 
-  let screen = <Landing navigate={navigate} restaurant={restaurant} />;
+  let screen = <Landing navigate={navigate} restaurant={restaurant} state={state} />;
   if (route === "/login") screen = <Login state={state} setState={setState} navigate={navigate} notify={notify} />;
   if (route === "/signup") screen = <Signup state={state} setState={setState} navigate={navigate} notify={notify} />;
   if (route.startsWith("/dashboard")) {
@@ -109,68 +144,80 @@ function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={`min-h-11 w-full rounded-md border border-stone-200 bg-white px-3 shadow-sm outline-none transition placeholder:text-stone-400 focus:border-flame focus:bg-white ${props.className || ""}`} />;
 }
 
+function PasswordInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  const [visible, setVisible] = useState(false);
+  return <div className="relative"><Input {...props} type={visible ? "text" : "password"} className={`pr-11 ${props.className || ""}`} /><button type="button" aria-label={visible ? "Hide password" : "Show password"} onClick={() => setVisible(!visible)} className="absolute right-2 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-md text-white/55 hover:text-white">{visible ? <EyeOff size={17} /> : <Eye size={17} />}</button></div>;
+}
+
 function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return <textarea {...props} className={`w-full rounded-md border border-stone-200 bg-white px-3 py-3 shadow-sm outline-none transition placeholder:text-stone-400 focus:border-flame focus:bg-white ${props.className || ""}`} />;
 }
 
-function Landing({ navigate, restaurant }: { navigate: (to: string) => void; restaurant?: Restaurant }) {
+function LegacyLanding({ navigate, restaurant }: { navigate: (to: string) => void; restaurant?: Restaurant }) {
   const sampleMenuUrl = `/menu/${restaurant?.id || "restaurant_demo"}?table=12`;
-  const navItems = ["Features", "Workflow", "Owner Tools"];
+  const [menuOpen, setMenuOpen] = useState(false);
+  const navItems = [["Features", "features"], ["How It Works", "workflow"], ["Owner Tools", "owner-tools"]] as const;
   const featureCards = [
-    { icon: QrCode, title: "Table QR Menus", text: "Generate restaurant and table-specific QR codes for fast customer ordering." },
-    { icon: ShoppingCart, title: "No-login Ordering", text: "Customers browse, add items, choose payment mode, and receive a token instantly." },
-    { icon: ChefHat, title: "Kitchen Tokens", text: "Accepted orders move into a focused kitchen screen with large status actions." },
-    { icon: Star, title: "Verified Ratings", text: "Only completed orders can submit food-wise ratings and reviews." },
+    { icon: QrCode, title: "QR Menu", text: "Customers scan and instantly browse your digital menu." },
+    { icon: ShoppingCart, title: "Online Ordering", text: "Let customers place orders directly from their table." },
+    { icon: ChefHat, title: "Live Kitchen Tokens", text: "Keep customers updated with real-time order status." },
+    { icon: BarChart3, title: "Owner Dashboard", text: "Manage menus, orders, tables and restaurant settings." },
+    { icon: Star, title: "Customer Ratings", text: "Collect feedback and understand what customers love." },
+    { icon: Smartphone, title: "No App Required", text: "Customers can order directly from their browser." },
   ];
-  const workflow = ["Scan QR", "Browse Menu", "Place Order", "Kitchen Prep", "Ready Alert", "Rate Food"];
+  const workflow = ["Scan QR", "Explore Menu", "Place Order", "Get Token", "Track Order", "Enjoy Your Food"];
 
   return (
-    <main className="min-h-screen bg-porcelain">
+    <main className="landing-page min-h-screen bg-[#111110] text-white">
       <nav className="fixed inset-x-0 top-0 z-40 border-b border-white/15 bg-ink/75 text-white backdrop-blur-xl">
-        <div className="mx-auto flex min-h-16 max-w-6xl items-center justify-between gap-4 px-5">
-          <button onClick={() => navigate("/")} className="flex items-center gap-2 text-lg font-black">
-            <ChefHat className="text-flame" /> QR Kitchen
+        <div className="mx-auto flex min-h-[76px] max-w-7xl items-center justify-between gap-4 px-5">
+          <button onClick={() => navigate("/")} className="flex items-center gap-2.5 text-lg font-black tracking-tight">
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-flame shadow-[0_0_28px_rgba(232,93,42,.42)]"><QrCode size={19} /></span> QR Kitchen
           </button>
           <div className="hidden items-center gap-6 text-sm font-semibold md:flex">
-            {navItems.map((item) => <a key={item} href={`#${item.toLowerCase().replace(" ", "-")}`} className="text-white/82 transition hover:text-white">{item}</a>)}
+            {navItems.map(([label, id]) => <a key={id} href={`#${id}`} className="text-white/65 transition hover:text-white">{label}</a>)}
           </div>
           <div className="flex items-center gap-2">
-            <Button tone="light" className="hidden md:inline-flex" onClick={() => navigate("/login")}>Login</Button>
-            <Button onClick={() => navigate("/signup")}><UserPlus size={17} /> Start</Button>
+            <button onClick={() => navigate("/login")} className="hidden px-3 text-sm font-bold text-white/75 transition hover:text-white md:block">Login</button>
+            <Button className="rounded-xl px-4" onClick={() => navigate("/signup")}>Start</Button>
+            <button onClick={() => setMenuOpen(!menuOpen)} className="grid h-10 w-10 place-items-center rounded-xl border border-white/15 md:hidden" aria-label="Toggle navigation">{menuOpen ? <X size={19} /> : <MenuIcon size={19} />}</button>
           </div>
         </div>
+        {menuOpen && <div className="border-t border-white/10 bg-[#151514] px-5 py-4 md:hidden"><div className="mx-auto grid max-w-7xl gap-3 text-sm font-bold text-white/75">{navItems.map(([label, id]) => <a key={id} href={`#${id}`} onClick={() => setMenuOpen(false)}>{label}</a>)}<button className="text-left" onClick={() => navigate("/login")}>Login</button></div></div>}
       </nav>
 
-      <section className="relative flex min-h-[900px] items-center overflow-hidden pt-16 sm:min-h-[90vh]">
+      <section className="relative flex min-h-[850px] items-center overflow-hidden pt-20 sm:min-h-[92vh]">
         <img src="https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=1800&q=85" className="absolute inset-0 h-full w-full scale-105 object-cover object-[62%_center] landing-kenburns sm:object-center" />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/75 via-black/55 to-black/80 sm:bg-gradient-to-r sm:from-black/80 sm:via-black/50 sm:to-black/15" />
-        <div className="relative mx-auto grid w-full max-w-6xl items-center gap-7 px-4 py-8 text-white sm:gap-10 sm:px-5 sm:py-16 lg:grid-cols-[1.05fr_0.95fr]">
+        <div className="absolute inset-0 bg-gradient-to-b from-[#090909]/90 via-[#090909]/64 to-[#111110] sm:bg-gradient-to-r sm:from-[#090909]/95 sm:via-[#090909]/65 sm:to-[#090909]/30" />
+        <div className="absolute -right-32 top-1/4 h-96 w-96 rounded-full bg-flame/20 blur-[130px]" />
+        <div className="relative mx-auto grid w-full max-w-7xl items-center gap-10 px-5 py-16 text-white lg:grid-cols-[1.05fr_0.95fr]">
           <div className="max-w-2xl animate-rise">
-            <div className="mb-3 inline-flex items-center gap-2 rounded-md bg-white/14 px-3 py-2 text-xs backdrop-blur sm:mb-4 sm:text-sm">
-              <QrCode size={16} /> QR menu, online ordering, and kitchen tokens
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-2 text-[11px] font-bold tracking-[.12em] text-white/85 backdrop-blur sm:text-xs">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-flame" /> QR MENU <span className="text-white/30">•</span> ONLINE ORDERING <span className="text-white/30">•</span> LIVE TOKENS
             </div>
-            <h1 className="text-3xl font-black leading-tight sm:text-7xl">Restaurant QR Ordering</h1>
-            <p className="mt-4 max-w-xl text-sm leading-6 text-white/88 sm:mt-5 sm:text-lg sm:leading-normal">Owners manage menus and orders. Customers scan, order, track their token, and review food without making an account.</p>
-            <div className="mt-6 flex flex-col gap-3 sm:mt-8 sm:flex-row sm:flex-wrap">
+            <h1 className="text-5xl font-black leading-[.94] tracking-[-.065em] sm:text-7xl lg:text-8xl">Scan. Order.<br /><span className="text-flame">Enjoy.</span></h1>
+            <p className="mt-6 max-w-xl text-base leading-7 text-white/72 sm:text-lg">Turn every table into a smarter ordering experience. Customers scan, explore the menu, place orders and track their token without waiting.</p>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               <Button onClick={() => navigate("/signup")}><UserPlus size={18} /> Create Restaurant</Button>
-              <Button tone="light" onClick={() => navigate(sampleMenuUrl)}><Eye size={18} /> Try Customer Menu</Button>
-              <Button tone="dark" onClick={() => navigate("/dashboard")}><BarChart3 size={18} /> Owner Dashboard</Button>
+              <button onClick={() => navigate(sampleMenuUrl)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 px-5 font-semibold backdrop-blur transition hover:border-white hover:bg-white/15"><Eye size={18} /> Explore Menu</button>
             </div>
-            <div className="mt-6 grid max-w-lg grid-cols-3 gap-2 text-center sm:mt-8 sm:gap-3">
-              {[["Live", "Orders"], ["Table", "QR"], ["Food", "Ratings"]].map(([big, small]) => <div key={big} className="rounded-md border border-white/15 bg-white/12 p-3 backdrop-blur"><p className="text-2xl font-black">{big}</p><p className="text-xs uppercase text-white/72">{small}</p></div>)}
+            <div className="mt-8 inline-flex items-center gap-3 rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm backdrop-blur-xl"><span className="relative flex h-3 w-3"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#7ce4a7] opacity-70" /><span className="relative inline-flex h-3 w-3 rounded-full bg-[#7ce4a7]" /></span><span className="font-bold">LIVE ORDERS</span><span className="text-white/55">24 orders being prepared</span></div>
+            <div className="mt-10 grid max-w-xl grid-cols-2 gap-x-5 gap-y-5 border-t border-white/15 pt-7 sm:grid-cols-4">
+              {[["10K+", "Orders Processed"], ["500+", "Restaurants"], ["4.9★", "Customer Rating"], ["99.9%", "System Uptime"]].map(([big, small]) => <div key={big}><p className="text-2xl font-black tracking-tight">{big}</p><p className="mt-1 text-[11px] font-medium uppercase tracking-wide text-white/50">{small}</p></div>)}
             </div>
           </div>
           <div className="relative mx-auto block w-full max-w-lg lg:max-w-none">
-            <div className="animate-float rounded-md border border-white/18 bg-white/14 p-3 shadow-soft backdrop-blur-xl sm:p-4">
-              <img src="https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?auto=format&fit=crop&w=800&q=85" className="aspect-[4/3] w-full rounded-md object-cover" />
-              <div className="mt-4 rounded-md bg-white p-4 text-ink">
+            <div className="absolute -inset-8 rounded-full bg-flame/25 blur-[60px]" />
+            <div className="animate-float relative rounded-[28px] border border-white/25 bg-white/15 p-3 shadow-[0_35px_90px_rgba(0,0,0,.46)] backdrop-blur-2xl sm:p-4">
+              <img src="https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?auto=format&fit=crop&w=800&q=85" className="aspect-[4/3] w-full rounded-[20px] object-cover" />
+              <div className="mt-4 rounded-[20px] bg-white p-4 text-ink">
                 <div className="flex items-start justify-between">
                   <div><h2 className="text-xl font-black">Paneer Tikka</h2><p className="font-black text-flame">INR 220</p></div>
                   <span className="font-bold"><Star size={16} className="inline fill-amber-400 text-amber-400" /> 4.8</span>
                 </div>
-                <div className="mt-4 flex items-center justify-between rounded-md bg-porcelain p-3">
+                <div className="mt-4 flex items-center justify-between rounded-xl bg-porcelain p-3">
                   <span className="font-black">Token #A104</span>
-                  <span className="rounded-md bg-green-100 px-2 py-1 text-xs font-black text-green-700">READY</span>
+                  <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-black text-green-700">● ORDER READY</span>
                 </div>
               </div>
             </div>
@@ -178,55 +225,43 @@ function Landing({ navigate, restaurant }: { navigate: (to: string) => void; res
         </div>
       </section>
 
-      <section id="features" className="mx-auto grid max-w-6xl gap-4 px-5 py-12 sm:grid-cols-2 lg:grid-cols-4">
+      <section id="features" className="relative mx-auto max-w-7xl px-5 py-24 sm:py-32">
+        <div className="mx-auto mb-12 max-w-2xl text-center"><p className="text-sm font-black uppercase tracking-[.18em] text-flame">Built for better service</p><h2 className="mt-3 text-4xl font-black tracking-[-.045em] sm:text-5xl">Everything Your Restaurant Needs</h2><p className="mt-4 leading-7 text-white/55">From QR menus to live kitchen tokens, manage the entire ordering journey in one place.</p></div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {featureCards.map(({ icon: Icon, title, text }, index) => (
-          <div key={title} className="animate-card rounded-md border border-stone-200 bg-white p-5 shadow-soft" style={{ animationDelay: `${index * 90}ms` }}>
-            <div className="mb-4 grid h-11 w-11 place-items-center rounded-md bg-flame/12 text-flame"><Icon size={22} /></div>
+          <div key={title} className="group animate-card rounded-2xl border border-white/10 bg-white/[.045] p-6 transition duration-300 hover:-translate-y-1 hover:border-flame/50 hover:bg-white/[.075] hover:shadow-[0_20px_50px_rgba(232,93,42,.12)]" style={{ animationDelay: `${index * 90}ms` }}>
+            <div className="mb-5 grid h-12 w-12 place-items-center rounded-xl bg-flame/15 text-flame transition group-hover:scale-110 group-hover:bg-flame group-hover:text-white"><Icon size={22} /></div>
             <h2 className="font-black">{title}</h2>
-            <p className="mt-2 text-sm leading-6 text-stone-600">{text}</p>
+            <p className="mt-2 text-sm leading-6 text-white/55">{text}</p>
           </div>
         ))}
+        </div>
       </section>
 
-      <section id="workflow" className="bg-white py-12">
-        <div className="mx-auto max-w-6xl px-5">
-          <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <p className="text-sm font-black uppercase text-flame">Customer Flow</p>
-              <h2 className="text-3xl font-black">From QR scan to food rating</h2>
-            </div>
-            <Button tone="light" onClick={() => navigate(sampleMenuUrl)}><ShoppingCart size={18} /> Place Demo Order</Button>
-          </div>
-          <div className="grid gap-3 md:grid-cols-6">
+      <section id="workflow" className="border-y border-white/10 bg-white/[.025] py-24">
+        <div className="mx-auto max-w-7xl px-5"><div className="mb-12 text-center"><p className="text-sm font-black uppercase tracking-[.18em] text-flame">Simple by design</p><h2 className="mt-3 text-4xl font-black tracking-[-.045em] sm:text-5xl">From table to taste in minutes</h2></div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
             {workflow.map((step, index) => (
-              <div key={step} className="rounded-md border border-stone-200 bg-porcelain p-4">
+              <div key={step} className="relative rounded-2xl border border-white/10 bg-[#181817] p-5">
                 <p className="text-sm font-black text-flame">0{index + 1}</p>
-                <p className="mt-2 font-black">{step}</p>
+                <div className="my-5 h-px w-full bg-gradient-to-r from-flame to-transparent" /><p className="font-black">{step}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section id="owner-tools" className="mx-auto grid max-w-6xl gap-6 px-5 py-12 lg:grid-cols-[0.9fr_1.1fr]">
-        <div>
-          <p className="text-sm font-black uppercase text-flame">Owner Tools</p>
-          <h2 className="mt-2 text-3xl font-black">Dashboard, QR codes, kitchen queue, and ratings in one place</h2>
-          <p className="mt-4 leading-7 text-stone-600">The app is structured around restaurant-specific data, so each owner manages only their own categories, food, orders, kitchen statuses, and reviews.</p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Button onClick={() => navigate("/dashboard")}><BarChart3 size={18} /> View Dashboard</Button>
-            <Button tone="light" onClick={() => navigate("/dashboard/qr")}><QrCode size={18} /> Generate QR</Button>
-          </div>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {["Today's sales", "Pending orders", "Preparing orders", "Average rating"].map((item, index) => (
-            <div key={item} className="rounded-md border border-stone-200 bg-white p-5 shadow-soft">
-              <p className="text-sm text-stone-500">{item}</p>
-              <p className="mt-2 text-3xl font-black">{["INR 12,450", "8", "3", "4.7"][index]}</p>
-            </div>
-          ))}
-        </div>
+      <section className="mx-auto grid max-w-7xl items-center gap-14 px-5 py-24 lg:grid-cols-[.75fr_1.25fr]">
+        <div className="mx-auto w-full max-w-sm rounded-[36px] border-[9px] border-[#2a2a28] bg-[#080808] p-3 shadow-[0_28px_70px_rgba(0,0,0,.5)]"><div className="overflow-hidden rounded-[25px] bg-[#191918] p-4"><div className="mb-5 flex items-center justify-between text-xs text-white/55"><span>9:41</span><span>●●●</span></div><img src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=700&q=85" className="aspect-square w-full rounded-2xl object-cover"/><p className="mt-4 text-lg font-black">Welcome to QR Kitchen</p><p className="mt-1 text-sm text-white/50">Table 12 · Browse the menu</p><div className="mt-4 flex items-center justify-between rounded-xl bg-flame px-4 py-3 text-sm font-bold">Explore menu <span>→</span></div></div></div>
+        <div><p className="text-sm font-black uppercase tracking-[.18em] text-flame">Customer experience</p><h2 className="mt-3 text-4xl font-black tracking-[-.045em] sm:text-5xl">Your Menu.<br />Their Phone.</h2><p className="mt-5 max-w-lg leading-7 text-white/55">A frictionless dining experience that feels natural from the first scan to the final bite.</p><div className="mt-7 grid gap-3 text-sm font-semibold text-white/75">{["No app download", "Fast ordering", "Easy menu browsing", "Live token tracking", "Simple ratings"].map(point => <p key={point} className="flex items-center gap-3"><span className="grid h-6 w-6 place-items-center rounded-full bg-flame/15 text-flame"><Check size={14}/></span>{point}</p>)}</div><Button className="mt-8 rounded-xl" onClick={() => navigate(sampleMenuUrl)}><Smartphone size={18} /> Try Customer Menu</Button></div>
       </section>
+
+      <section id="owner-tools" className="border-y border-white/10 bg-[#191918] py-24">
+        <div className="mx-auto grid max-w-7xl gap-10 px-5 lg:grid-cols-[.8fr_1.2fr]"><div><p className="text-sm font-black uppercase tracking-[.18em] text-flame">Owner tools</p><h2 className="mt-3 text-4xl font-black tracking-[-.045em] sm:text-5xl">Control Your Restaurant From One Dashboard</h2><p className="mt-5 leading-7 text-white/55">Know what is happening across every table, order and menu item in real time.</p><Button className="mt-7 rounded-xl" onClick={() => navigate("/dashboard")}><BarChart3 size={18} /> View Dashboard</Button></div>
+        <div className="rounded-3xl border border-white/10 bg-[#10100f] p-4 shadow-2xl sm:p-6"><div className="mb-6 flex items-center justify-between"><div><p className="text-xs font-bold uppercase tracking-widest text-white/40">Overview</p><p className="mt-1 text-xl font-black">Good evening, Chef</p></div><span className="rounded-full bg-green-400/10 px-3 py-1 text-xs font-bold text-green-300">Live</span></div><div className="grid gap-3 sm:grid-cols-4">{[["Today’s Orders", "124"], ["Revenue", "₹18,450"], ["Pending", "18"], ["Completed", "106"]].map(([label, value]) => <div key={label} className="rounded-2xl bg-white/[.055] p-4"><p className="text-xs text-white/45">{label}</p><p className="mt-2 text-2xl font-black">{value}</p></div>)}</div><div className="mt-5 overflow-hidden rounded-2xl border border-white/8"><div className="grid grid-cols-4 bg-white/[.04] px-4 py-3 text-[10px] font-bold uppercase tracking-wide text-white/45"><span>Token</span><span>Item</span><span>Table</span><span>Status</span></div>{[["A104", "Paneer Tikka", "T12", "READY"], ["A105", "Butter Naan", "T08", "PREPARING"], ["A106", "Biryani", "T15", "NEW"]].map(row => <div key={row[0]} className="grid grid-cols-4 border-t border-white/8 px-4 py-3 text-xs"><span className="font-bold">{row[0]}</span><span className="text-white/70">{row[1]}</span><span className="text-white/55">{row[2]}</span><span className="font-bold text-flame">{row[3]}</span></div>)}</div></div></div>
+      </section>
+
+      <footer className="mx-auto flex max-w-7xl flex-col gap-7 px-5 py-12 text-sm text-white/45 sm:flex-row sm:items-end sm:justify-between"><div><div className="flex items-center gap-2 text-lg font-black text-white"><span className="grid h-8 w-8 place-items-center rounded-lg bg-flame"><QrCode size={16}/></span> QR Kitchen</div><p className="mt-3">Smarter ordering. Better dining.</p></div><div className="flex flex-wrap gap-x-5 gap-y-2">{navItems.map(([label, id]) => <a key={id} href={`#${id}`} className="transition hover:text-white">{label}</a>)}<button onClick={() => navigate(sampleMenuUrl)} className="transition hover:text-white">Customer Menu</button><button onClick={() => navigate("/login")} className="transition hover:text-white">Login</button></div><p>© 2026 QR Kitchen. All rights reserved.</p></footer>
     </main>
   );
 }
@@ -241,45 +276,80 @@ function Login({ state, setState, navigate, notify }: CommonProps) {
     notify("Welcome back.");
     navigate("/dashboard");
   }
+  async function googleLogin() {
+    if (!firebaseEnabled) return notify("Google sign-in needs Firebase configuration.");
+    try {
+      const result = await signInWithGoogle();
+      const profile: GoogleProfile = { uid: result.user.uid, name: result.user.displayName || "", email: result.user.email || "", photoURL: result.user.photoURL || "" };
+      const owner = state.owners.find((item) => item.googleUid === profile.uid || item.email === profile.email.toLowerCase());
+      if (owner) {
+        setState({ ...state, currentOwnerId: owner.id, owners: state.owners.map((item) => item.id === owner.id ? { ...item, googleUid: profile.uid, photoURL: profile.photoURL, name: item.name || profile.name } : item) });
+        return navigate("/dashboard");
+      }
+      saveGoogleProfile(profile);
+      navigate("/signup");
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Google sign-in was cancelled.");
+    }
+  }
   return <AuthShell title="Owner Login" subtitle="Customers never need an account. Owner access is protected.">
     <form onSubmit={submit} className="space-y-4">
       <Input name="email" type="email" placeholder="Email" defaultValue="owner@demo.com" required />
-      <Input name="password" type="password" placeholder="Password" defaultValue="password123" required />
+      <PasswordInput name="password" placeholder="Password" defaultValue="password123" required />
       <Button className="w-full">Login</Button>
+      <Button type="button" tone="light" className="w-full" onClick={googleLogin}>Continue with Google</Button>
       <div className="flex justify-between text-sm"><button type="button" className="font-semibold text-flame">Forgot Password</button><button type="button" onClick={() => navigate("/signup")} className="font-semibold text-flame">Create Restaurant Account</button></div>
     </form>
   </AuthShell>;
 }
 
 function Signup({ state, setState, navigate, notify }: CommonProps) {
+  const [googleProfile, setGoogleProfile] = useState<GoogleProfile | null>(() => readGoogleProfile());
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(event.currentTarget).entries()) as Record<string, string>;
-    if (data.password !== data.confirmPassword) return notify("Passwords do not match.");
-    const next = createOwner(state, data);
+    if (!googleProfile && data.password !== data.confirmPassword) return notify("Passwords do not match.");
+    const next = createOwner(state, googleProfile ? { ...data, ownerName: googleProfile.name, email: googleProfile.email, password: "", googleUid: googleProfile.uid, photoURL: googleProfile.photoURL } : data);
     setState(next);
+    clearGoogleProfile();
     notify("Restaurant profile and QR route created.");
     navigate("/dashboard");
   }
+  async function googleSignup() {
+    if (!firebaseEnabled) return notify("Google sign-in needs Firebase configuration.");
+    try {
+      const result = await signInWithGoogle();
+      const profile: GoogleProfile = { uid: result.user.uid, name: result.user.displayName || "", email: result.user.email || "", photoURL: result.user.photoURL || "" };
+      const owner = state.owners.find((item) => item.googleUid === profile.uid || item.email === profile.email.toLowerCase());
+      if (owner) {
+        setState({ ...state, currentOwnerId: owner.id, owners: state.owners.map((item) => item.id === owner.id ? { ...item, googleUid: profile.uid, photoURL: profile.photoURL, name: item.name || profile.name } : item) });
+        return navigate("/dashboard");
+      }
+      saveGoogleProfile(profile);
+      setGoogleProfile(profile);
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Google sign-in was cancelled.");
+    }
+  }
   return <AuthShell title="Register Restaurant Owner" subtitle="Create an owner account and restaurant profile in one step.">
     <form onSubmit={submit} className="grid gap-3 sm:grid-cols-2">
-      <Input name="ownerName" placeholder="Owner Name" required />
+      {!googleProfile && <Input name="ownerName" placeholder="Owner Name" required />}
       <Input name="restaurantName" placeholder="Restaurant Name" required />
-      <Input name="email" type="email" placeholder="Email" required />
+      {!googleProfile && <Input name="email" type="email" placeholder="Email" required />}
       <Input name="mobile" placeholder="Mobile Number" required />
-      <Input name="password" type="password" placeholder="Password" required />
-      <Input name="confirmPassword" type="password" placeholder="Confirm Password" required />
+      {!googleProfile && <><PasswordInput name="password" placeholder="Password" required /><PasswordInput name="confirmPassword" placeholder="Confirm Password" required /></>}
       <Input name="address" placeholder="Restaurant Address" className="sm:col-span-2" required />
       <Button className="sm:col-span-2">Signup and Open Dashboard</Button>
+      {!googleProfile && <Button type="button" tone="light" className="sm:col-span-2" onClick={googleSignup}>Continue with Google</Button>}
     </form>
   </AuthShell>;
 }
 
 function AuthShell({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
-  return <main className="flex min-h-screen items-center justify-center bg-porcelain px-5 py-10">
-    <section className="grid w-full max-w-5xl overflow-hidden rounded-md bg-white shadow-soft md:grid-cols-[1fr_1.1fr]">
+  return <main className="auth-shell flex min-h-screen items-center justify-center bg-[#080808] px-5 py-10">
+    <section className="grid w-full max-w-5xl overflow-hidden rounded-3xl border border-white/10 bg-white/[.055] shadow-soft backdrop-blur-xl md:grid-cols-[1fr_1.1fr]">
       <div className="relative hidden min-h-[560px] md:block"><img src="https://images.unsplash.com/photo-1559329007-40df8a9345d8?auto=format&fit=crop&w=900&q=85" className="h-full w-full object-cover" /></div>
-      <div className="p-6 sm:p-10"><a href="/" className="mb-8 inline-flex items-center gap-2 font-black"><ChefHat className="text-flame" /> QR Kitchen</a><h1 className="text-3xl font-black">{title}</h1><p className="mb-8 mt-2 text-stone-600">{subtitle}</p>{children}</div>
+      <div className="p-6 text-white sm:p-10"><a href="/" className="mb-8 inline-flex items-center gap-2 font-black"><ChefHat className="text-flame" /> QR Kitchen</a><h1 className="text-3xl font-black">{title}</h1><p className="mb-8 mt-2 text-white/55">{subtitle}</p>{children}</div>
     </section>
   </main>;
 }
@@ -296,10 +366,10 @@ function Dashboard({ state, setState, navigate, route, notify }: CommonProps & {
   const restaurant = state.restaurants.find((item) => item.id === owner.restaurantId)!;
   const page = route.split("/")[2] || "overview";
   const nav = [
-    ["overview", Home, "Overview"], ["orders", Bell, "Orders"], ["kitchen", ChefHat, "Kitchen"], ["menu", Utensils, "Menu"],
+    ["overview", Home, "Overview"], ["analytics", BarChart3, "Analytics"], ["orders", Bell, "Orders"], ["kitchen", ChefHat, "Kitchen"], ["menu", Utensils, "Menu"],
     ["categories", MenuIcon, "Categories"], ["ratings", Star, "Ratings"], ["qr", QrCode, "QR Code"], ["profile", Store, "Profile"], ["settings", Settings, "Settings"],
   ] as const;
-  return <main className="min-h-screen bg-porcelain text-ink lg:grid lg:grid-cols-[280px_1fr]">
+  return <main className="dashboard-shell min-h-screen bg-[#080808] text-white lg:grid lg:grid-cols-[280px_1fr]">
     <aside className="sticky top-0 z-20 border-b border-stone-800 bg-ink p-4 text-white lg:h-screen lg:border-b-0 lg:border-r">
       <div className="flex items-center justify-between lg:block">
         <button onClick={() => navigate("/")} className="flex items-center gap-2 text-xl font-black"><ChefHat className="text-flame" /> {restaurant.name}</button>
@@ -321,6 +391,7 @@ function Dashboard({ state, setState, navigate, route, notify }: CommonProps & {
         <Button tone="light" className="w-full sm:w-auto" onClick={() => navigate(`/menu/${restaurant.id}?table=12`)}><QrCode size={18} /> Open QR Menu</Button>
       </div>
       {page === "overview" && <Overview state={state} restaurant={restaurant} />}
+      {page === "analytics" && <Analytics state={state} restaurant={restaurant} />}
       {page === "orders" && <OrdersPanel state={state} setState={setState} restaurant={restaurant} />}
       {page === "kitchen" && <KitchenPanel state={state} setState={setState} restaurant={restaurant} />}
       {page === "menu" && <MenuManager state={state} setState={setState} restaurant={restaurant} notify={notify} />}
@@ -333,17 +404,126 @@ function Dashboard({ state, setState, navigate, route, notify }: CommonProps & {
   </main>;
 }
 
+function restaurantMetrics(state: AppState, restaurantId: string) {
+  const orders = state.orders.filter((order) => order.restaurantId === restaurantId);
+  const validOrders = orders.filter((order) => order.orderStatus !== "REJECTED");
+  const foods = state.foods.filter((food) => food.restaurantId === restaurantId);
+  const ratings = state.ratings.filter((rating) => rating.restaurantId === restaurantId);
+  const unique = (values: string[]) => new Set(values.filter(Boolean)).size;
+  const sales = validOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+  const startOfMonth = new Date(startOfDay.getFullYear(), startOfDay.getMonth(), 1);
+  const inRange = (start: Date) => validOrders.filter((order) => new Date(order.createdAt) >= start);
+  const profitOrders = validOrders.filter((order) => typeof order.profit === "number");
+  const salesBy = (key: (order: Order) => string) => {
+    const result = new Map<string, number>();
+    validOrders.forEach((order) => result.set(key(order), (result.get(key(order)) || 0) + order.totalAmount));
+    return [...result.entries()].sort((a, b) => b[1] - a[1]);
+  };
+  const itemSales = new Map<string, { name: string; quantity: number; revenue: number }>();
+  validOrders.forEach((order) => order.items.forEach((item) => {
+    const current = itemSales.get(item.foodId) || { name: item.name, quantity: 0, revenue: 0 };
+    current.quantity += item.quantity;
+    current.revenue += item.quantity * item.price;
+    itemSales.set(item.foodId, current);
+  }));
+  const productSales = foods.map((food) => ({ ...food, ...(itemSales.get(food.id) || { quantity: 0, revenue: 0 }) })).sort((a, b) => b.quantity - a.quantity);
+  const categorySales = new Map<string, number>();
+  validOrders.forEach((order) => order.items.forEach((item) => {
+    const food = foods.find((entry) => entry.id === item.foodId);
+    const category = state.categories.find((entry) => entry.id === food?.categoryId)?.name || "Uncategorised";
+    categorySales.set(category, (categorySales.get(category) || 0) + item.quantity * item.price);
+  }));
+  const peakHours = new Map<number, number>();
+  validOrders.forEach((order) => { const hour = new Date(order.createdAt).getHours(); peakHours.set(hour, (peakHours.get(hour) || 0) + 1); });
+  const formatHour = (hour: number) => `${String(hour).padStart(2, "0")}:00`;
+  return {
+    orders,
+    validOrders,
+    sales,
+    customers: unique(validOrders.map((order) => order.customerSessionId)),
+    averageOrder: validOrders.length ? sales / validOrders.length : 0,
+    averageRating: ratings.length ? ratings.reduce((sum, rating) => sum + rating.rating, 0) / ratings.length : 0,
+    activeTables: unique(validOrders.filter((order) => !["COMPLETED", "REJECTED"].includes(order.orderStatus) && order.tableNumber !== "Takeaway").map((order) => order.tableNumber)),
+    daily: inRange(startOfDay),
+    monthly: inRange(startOfMonth),
+    profit: profitOrders.length ? profitOrders.reduce((sum, order) => sum + (order.profit || 0), 0) : undefined,
+    productSales,
+    categorySales: [...categorySales.entries()].sort((a, b) => b[1] - a[1]),
+    orderTypes: salesBy((order) => order.orderType || (order.tableNumber === "Takeaway" ? "Takeaway" : "Dine-in")),
+    paymentMethods: salesBy((order) => order.paymentMethod),
+    tablePerformance: salesBy((order) => order.tableNumber),
+    peakHours: [...peakHours.entries()].sort((a, b) => b[1] - a[1]).map(([hour, count]) => [`${formatHour(hour)}-${formatHour((hour + 1) % 24)}`, count] as [string, number]),
+  };
+}
+
 function Overview({ state, restaurant }: { state: AppState; restaurant: Restaurant }) {
-  const orders = state.orders.filter((item) => item.restaurantId === restaurant.id);
+  const metrics = restaurantMetrics(state, restaurant.id);
+  const orders = metrics.orders;
   const foods = state.foods.filter((item) => item.restaurantId === restaurant.id);
-  const avg = foods.length ? foods.reduce((s, f) => s + f.averageRating, 0) / foods.length : 0;
+  const avg = metrics.averageRating;
   const stats = [
-    ["Today's orders", orders.length, Bell], ["Pending orders", orders.filter((o) => o.orderStatus === "PLACED").length, Clock],
+    ["Total orders", metrics.validOrders.length, Bell], ["Total customers", metrics.customers, UserPlus],
+    ["Total sales", currency.format(metrics.sales), CreditCard], ["Average order value", currency.format(metrics.averageOrder), BarChart3],
+    ["Active tables", metrics.activeTables, Store], ["Daily sales", currency.format(metrics.daily.reduce((sum, order) => sum + order.totalAmount, 0)), Clock],
+    ["Monthly sales", currency.format(metrics.monthly.reduce((sum, order) => sum + order.totalAmount, 0)), BarChart3], ["Average rating", avg ? avg.toFixed(1) : "No ratings", Star],
+    ["Pending orders", orders.filter((o) => o.orderStatus === "PLACED").length, Clock],
     ["Preparing orders", orders.filter((o) => o.orderStatus === "PREPARING").length, ChefHat], ["Ready orders", orders.filter((o) => o.orderStatus === "READY").length, PackageCheck],
-    ["Completed orders", orders.filter((o) => o.orderStatus === "COMPLETED").length, ShoppingCart], ["Today's sales", currency.format(orders.filter((o) => o.orderStatus !== "REJECTED").reduce((s, o) => s + o.totalAmount, 0)), CreditCard],
+    ["Completed orders", orders.filter((o) => o.orderStatus === "COMPLETED").length, ShoppingCart],
     ["Total menu items", foods.length, Utensils], ["Average rating", avg.toFixed(1), Star],
   ] as const;
-  return <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">{stats.map(([label, value, Icon]) => <div key={label} className="rounded-md border border-stone-200 bg-white p-5 shadow-soft transition hover:-translate-y-0.5 hover:shadow-lift"><div className="flex items-start justify-between gap-3"><p className="text-sm font-semibold text-stone-500">{label}</p><span className="grid h-10 w-10 place-items-center rounded-md bg-flame/10 text-flame"><Icon size={19} /></span></div><p className="mt-2 text-3xl font-black tracking-tight">{value}</p></div>)}<div className="rounded-md border border-stone-200 bg-white p-5 shadow-soft md:col-span-2 xl:col-span-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-black">Popular food items</h2><p className="text-sm text-stone-500">Based on verified item ratings</p></div><span className="rounded-md bg-basil/10 px-3 py-1 text-sm font-black text-basil">{foods.length} active items</span></div><div className="mt-4 grid gap-3 sm:grid-cols-3">{foods.sort((a,b)=>b.totalRatings-a.totalRatings).slice(0,3).map(food=><FoodMini key={food.id} food={food} />)}</div></div></div>;
+  return <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">{stats.map(([label, value, Icon], index) => <div key={`${label}-${index}`} className="rounded-md border border-stone-200 bg-white p-5 shadow-soft transition hover:-translate-y-0.5 hover:shadow-lift"><div className="flex items-start justify-between gap-3"><p className="text-sm font-semibold text-stone-500">{label}</p><span className="grid h-10 w-10 place-items-center rounded-md bg-flame/10 text-flame"><Icon size={19} /></span></div><p className="mt-2 text-3xl font-black tracking-tight">{value}</p></div>)}<div className="rounded-md border border-stone-200 bg-white p-5 shadow-soft md:col-span-2 xl:col-span-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-black">Top-selling products</h2><p className="text-sm text-stone-500">Based on actual order quantities</p></div><span className="rounded-md bg-basil/10 px-3 py-1 text-sm font-black text-basil">{foods.length} active items</span></div><div className="mt-4 grid gap-3 sm:grid-cols-3">{metrics.productSales.slice(0,3).map(food=><FoodMini key={food.id} food={food} />)}</div></div><div className="grid gap-4 md:col-span-2 xl:col-span-4 xl:grid-cols-2"><AnalyticsList title="Low-performing products" empty="No menu products yet." rows={metrics.productSales.slice(-5).reverse().map(food => [food.name, `${food.quantity} sold`, currency.format(food.revenue)])}/><AnalyticsList title="Sales by category" empty="No category sales yet." rows={metrics.categorySales.slice(0,5).map(([name, value]) => [name, currency.format(value), ""])} /></div></div>;
+}
+
+function Analytics({ state, restaurant }: { state: AppState; restaurant: Restaurant }) {
+  const [period, setPeriod] = useState("7d");
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
+  const metrics = restaurantMetrics(state, restaurant.id);
+  const ranges = [["today", "Daily"], ["yesterday", "Yesterday"], ["7d", "Weekly"], ["30d", "30 Days"], ["month", "Monthly"], ["lastMonth", "Last Month"], ["custom", "Custom"]] as const;
+  const data = useMemo(() => {
+    const now = new Date();
+    const startOfDay = (value: Date) => new Date(value.getFullYear(), value.getMonth(), value.getDate());
+    let start = new Date(0);
+    let end = new Date(now.getTime() + 1);
+    if (period === "today") start = startOfDay(now);
+    if (period === "yesterday") { end = startOfDay(now); start = new Date(end); start.setDate(start.getDate() - 1); }
+    if (period === "7d") { start = startOfDay(now); start.setDate(start.getDate() - 6); }
+    if (period === "30d") { start = startOfDay(now); start.setDate(start.getDate() - 29); }
+    if (period === "month") start = new Date(now.getFullYear(), now.getMonth(), 1);
+    if (period === "lastMonth") { start = new Date(now.getFullYear(), now.getMonth() - 1, 1); end = new Date(now.getFullYear(), now.getMonth(), 1); }
+    if (period === "custom") { if (customStart) start = new Date(`${customStart}T00:00:00`); if (customEnd) end = new Date(`${customEnd}T23:59:59.999`); }
+    const orders = state.orders.filter(order => order.restaurantId === restaurant.id && order.orderStatus !== "REJECTED" && new Date(order.createdAt) >= start && new Date(order.createdAt) <= end);
+    const sales = orders.reduce((sum, order) => sum + order.totalAmount, 0);
+    const itemStats = new Map<string, { name: string; quantity: number; revenue: number; rating: number }>();
+    orders.forEach(order => order.items.forEach(item => { const food = state.foods.find(f => f.id === item.foodId); const current = itemStats.get(item.foodId) || { name: item.name, quantity: 0, revenue: 0, rating: food?.averageRating || 0 }; current.quantity += item.quantity; current.revenue += item.quantity * item.price; itemStats.set(item.foodId, current); }));
+    const daily = new Map<string, { label: string; sales: number; orders: number }>();
+    orders.forEach(order => { const date = new Date(order.createdAt); const key = date.toLocaleDateString("en-IN", { day: "numeric", month: "short" }); const current = daily.get(key) || { label: key, sales: 0, orders: 0 }; current.sales += order.totalAmount; current.orders += 1; daily.set(key, current); });
+    const categoryStats = new Map<string, number>();
+    orders.forEach(order => order.items.forEach(item => { const food = state.foods.find(f => f.id === item.foodId); const category = state.categories.find(c => c.id === food?.categoryId)?.name || "Uncategorised"; categoryStats.set(category, (categoryStats.get(category) || 0) + item.price * item.quantity); }));
+    return { orders, sales, items: [...itemStats.values()].sort((a, b) => b.quantity - a.quantity), daily: [...daily.values()], categories: [...categoryStats.entries()].sort((a, b) => b[1] - a[1]), ratings: state.ratings.filter(r => r.restaurantId === restaurant.id && new Date(r.createdAt) >= start && new Date(r.createdAt) <= end) };
+  }, [state, restaurant.id, period, customStart, customEnd]);
+  const avgOrder = data.orders.length ? data.sales / data.orders.length : 0;
+  const averageRating = data.ratings.length ? data.ratings.reduce((sum, rating) => sum + rating.rating, 0) / data.ratings.length : 0;
+  const metricCards: [string, string, typeof CreditCard][] = [["Total sales", currency.format(data.sales), CreditCard], ["Total orders", String(data.orders.length), Bell], ["Total customers", String(new Set(data.orders.map(order => order.customerSessionId).filter(Boolean)).size), UserPlus], ["Average order value", currency.format(avgOrder), BarChart3], ["Customer rating", averageRating ? `${averageRating.toFixed(1)} ★` : "No ratings", Star]];
+  if (metrics.profit !== undefined) metricCards.push(["Total profit", currency.format(metrics.profit), CreditCard]);
+  const maxDaily = Math.max(...data.daily.map(day => day.sales), 1);
+  const statuses: OrderStatus[] = ["PLACED", "ACCEPTED", "PREPARING", "READY", "COMPLETED", "REJECTED"];
+  return <div className="analytics-grid space-y-5">
+    <div className="flex flex-wrap gap-2">{ranges.map(([key, label]) => <button key={key} onClick={() => setPeriod(key)} className={`rounded-xl px-3 py-2 text-xs font-bold transition ${period === key ? "bg-flame text-white shadow-lift" : "border border-white/10 bg-white/[.04] text-white/60 hover:text-white"}`}>{label}</button>)}</div>
+    {period === "custom" && <div className="grid gap-3 rounded-2xl border border-white/10 bg-white/[.035] p-4 sm:grid-cols-2"><label className="text-sm font-semibold text-white/70">Start date<Input type="date" value={customStart} onChange={event => setCustomStart(event.target.value)} className="mt-2 dark-input" /></label><label className="text-sm font-semibold text-white/70">End date<Input type="date" value={customEnd} onChange={event => setCustomEnd(event.target.value)} className="mt-2 dark-input" /></label></div>}
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{metricCards.map(([label, value, Icon]) => <div key={label} className="rounded-2xl border border-white/10 bg-white/[.045] p-5 shadow-soft"><div className="flex justify-between"><p className="text-sm font-semibold text-white/45">{label}</p><Icon className="text-flame" size={19}/></div><p className="mt-3 text-3xl font-black">{value}</p></div>)}</div>
+    {data.orders.length ? <><section className="rounded-2xl border border-white/10 bg-white/[.035] p-5 sm:p-6"><div className="flex items-end justify-between gap-3"><div><p className="text-sm font-black uppercase tracking-widest text-flame">Sales overview</p><h2 className="mt-1 text-2xl font-black">Revenue by day</h2></div><p className="text-sm text-white/45">Actual order data</p></div><div className="mt-8 flex h-52 items-end gap-2 overflow-x-auto pb-7">{data.daily.map(day => <div key={day.label} className="group relative flex h-full min-w-10 flex-1 items-end"><div title={`${day.label}: ${currency.format(day.sales)} · ${day.orders} orders`} className="w-full rounded-t-lg bg-gradient-to-t from-flame to-[#ff956b] transition group-hover:brightness-125" style={{ height: `${Math.max(7, (day.sales / maxDaily) * 100)}%` }} /><span className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] text-white/40">{day.label}</span></div>)}</div></section>
+      <div className="grid gap-5 xl:grid-cols-2"><AnalyticsList title="Top Selling Items" empty="No item sales in this period." rows={data.items.slice(0, 5).map(item => [item.name, `${item.quantity} sold · ${currency.format(item.revenue)}`, `${item.rating.toFixed(1)} ★`])}/><AnalyticsList title="Low-performing Products" empty="No item sales in this period." rows={data.items.slice(-5).reverse().map(item => [item.name, `${item.quantity} sold`, currency.format(item.revenue)])}/><AnalyticsList title="Revenue by Category" empty="No category sales in this period." rows={data.categories.slice(0, 5).map(([name, revenue]) => [name, currency.format(revenue), `${data.sales ? Math.round(revenue / data.sales * 100) : 0}%`])}/></div>
+      <div className="grid gap-5 xl:grid-cols-2"><AnalyticsList title="Order Type" empty="No order type data." rows={metrics.orderTypes.map(([name, value]) => [name, currency.format(value), ""])} /><AnalyticsList title="Payment Method" empty="No payment data." rows={metrics.paymentMethods.map(([name, value]) => [name, currency.format(value), ""])} /><AnalyticsList title="Table Performance" empty="No table orders." rows={metrics.tablePerformance.slice(0, 5).map(([name, value]) => [name, currency.format(value), ""])} /><AnalyticsList title="Peak Ordering Hours" empty="No order timing data." rows={metrics.peakHours.slice(0, 5).map(([name, value]) => [name, `${value} orders`, ""])} /></div>
+      <div className="grid gap-5 xl:grid-cols-[.8fr_1.2fr]"><section className="rounded-2xl border border-white/10 bg-white/[.035] p-5"><h2 className="font-black">Order status</h2><div className="mt-5 space-y-4">{statuses.map(status => { const count = data.orders.filter(order => order.orderStatus === status).length; const percent = data.orders.length ? Math.round(count / data.orders.length * 100) : 0; return <div key={status}><div className="flex justify-between text-xs font-bold"><span>{status}</span><span className="text-white/45">{count} · {percent}%</span></div><div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-flame" style={{ width: `${percent}%` }}/></div></div>; })}</div></section><section className="overflow-hidden rounded-2xl border border-white/10 bg-white/[.035]"><div className="p-5"><h2 className="font-black">Recent Orders</h2></div><div className="min-w-[540px]"><div className="grid grid-cols-5 border-y border-white/10 bg-white/[.03] px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-white/40"><span>Token</span><span>Items</span><span>Table</span><span>Amount</span><span>Status</span></div>{data.orders.slice(0, 5).map(order => <div key={order.id} className="grid grid-cols-5 border-b border-white/5 px-5 py-3 text-xs"><span className="font-bold">{order.tokenNumber}</span><span className="truncate text-white/65">{order.items.map(item => item.name).join(", ")}</span><span className="text-white/55">{order.tableNumber}</span><span>{currency.format(order.totalAmount)}</span><span className="font-bold text-flame">{order.orderStatus}</span></div>)}</div></section></div>
+      <AnalyticsList title="Customer Feedback" empty="No completed-order reviews for this period." rows={data.ratings.slice(0, 5).map(rating => [state.foods.find(food => food.id === rating.foodId)?.name || "Menu item", `${rating.rating} ★`, rating.review || "No written review"])}/></> : <Empty text="No sales data available for this period. Orders placed through your QR menu will appear here automatically." />}
+  </div>;
+}
+
+function AnalyticsList({ title, rows, empty }: { title: string; rows: string[][]; empty: string }) {
+  return <section className="rounded-2xl border border-white/10 bg-white/[.035] p-5"><h2 className="font-black">{title}</h2>{rows.length ? <div className="mt-4 space-y-3">{rows.map((row, index) => <div key={`${row[0]}-${index}`} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 border-t border-white/8 pt-3 text-sm"><span className="font-semibold">{row[0]}</span><span className="text-white/50">{row[1]}</span><span className="font-bold text-flame">{row[2]}</span></div>)}</div> : <p className="mt-4 text-sm text-white/45">{empty}</p>}</section>;
 }
 
 function FoodMini({ food }: { food: Food }) {
@@ -483,7 +663,7 @@ function CustomerMenu({ state, setState, restaurantId, navigate, notify }: Commo
   const params = new URLSearchParams(window.location.search);
   const restaurant = state.restaurants.find((item) => item.id === restaurantId);
   const [category, setCategory] = useState("All");
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(params.get("search") || "");
   const [cart, setCart] = useState<CartLine[]>([]);
   const [video, setVideo] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("Cash");
@@ -510,7 +690,7 @@ function CustomerMenu({ state, setState, restaurantId, navigate, notify }: Commo
     notify(`Order #${created.order.tokenNumber} placed.`);
     navigate(`/order/${created.order.id}`);
   }
-  return <main className="min-h-screen bg-porcelain pb-32">
+  return <main className="customer-shell min-h-screen bg-[#080808] pb-32 text-white">
     <header className="relative overflow-hidden">
       <img src={restaurant.coverImage} className="h-72 w-full object-cover sm:h-80" />
       <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent" />
@@ -526,7 +706,7 @@ function CustomerMenu({ state, setState, restaurantId, navigate, notify }: Commo
       </div>
     </header>
     {restaurant.status === "closed" ? <div className="mx-4 mt-5 rounded-md bg-red-100 p-4 font-bold text-red-700">Restaurant is currently closed.</div> : <>
-      <section className="sticky top-0 z-10 border-b border-stone-200 bg-porcelain/95 px-4 py-4 backdrop-blur">
+      <section className="sticky top-0 z-10 border-b border-white/10 bg-[#080808]/95 px-4 py-4 backdrop-blur">
         <div className="mx-auto max-w-5xl">
           <div className="relative">
             <Search className="absolute left-3 top-3 text-stone-400" size={18} />
