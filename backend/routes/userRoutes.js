@@ -1,5 +1,6 @@
 import express from 'express';
 import User from '../models/User.js';
+import Restaurant from '../models/Restaurant.js';
 import { hashPassword, verifyPassword } from '../utils/password.js';
 
 const router = express.Router();
@@ -39,15 +40,29 @@ router.post('/login', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
+  let createdUser;
+  let createdRestaurant;
   try {
     const name = String(req.body?.name || '').trim();
     const email = String(req.body?.email || '').trim().toLowerCase();
     const password = String(req.body?.password || '');
+    const confirmPassword = String(req.body?.confirmPassword || '');
+    const restaurantName = String(req.body?.restaurantName || '').trim();
+    const phone = String(req.body?.phone || '').trim();
+    const address = String(req.body?.address || '').trim();
     const googleUid = String(req.body?.googleUid || '').trim();
     const role = req.body?.role || 'owner';
 
-    if (!name || !email || (!password && !googleUid)) {
-      return res.status(400).json({ message: 'Name and email are required, along with a password or Google account.' });
+    if (!name || !email || !restaurantName || !phone || !address || (!password && !googleUid)) {
+      return res.status(400).json({ message: 'Name, email, restaurant name, phone, address and password are required.' });
+    }
+
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+      return res.status(400).json({ message: 'Please provide a valid email address.' });
+    }
+
+    if (password && password !== confirmPassword) {
+      return res.status(400).json({ message: 'Passwords do not match.' });
     }
 
     const existingUser = await User.findOne({ email });
@@ -55,26 +70,56 @@ router.post('/', async (req, res) => {
       return res.status(409).json({ message: 'User with this email already exists.' });
     }
 
-    const createdUser = await User.create({
+    createdUser = await User.create({
       name,
       email,
       password: password ? await hashPassword(password) : '',
       role,
-      restaurantId: req.body?.restaurantId || null,
+      restaurantId: null,
       googleUid: googleUid || null,
       photoURL: req.body?.photoURL || '',
     });
+
+    createdRestaurant = await Restaurant.create({
+      name: restaurantName,
+      phone,
+      address,
+      ownerId: createdUser._id,
+    });
+
+    createdUser.restaurantId = createdRestaurant._id;
+    await createdUser.save();
 
     const safeUser = createdUser.toObject();
     delete safeUser.password;
     safeUser.id = safeUser._id.toString();
     delete safeUser._id;
 
-    res.status(201).json(safeUser);
+    res.status(201).json({
+      ...safeUser,
+      restaurantId: createdRestaurant._id.toString(),
+      restaurant: {
+        id: createdRestaurant._id.toString(),
+        name: createdRestaurant.name,
+        phone: createdRestaurant.phone,
+        address: createdRestaurant.address,
+      },
+    });
   } catch (error) {
     if (error?.code === 11000) {
       return res.status(409).json({ message: 'User with this email already exists.' });
     }
+    if (createdRestaurant?._id) {
+      await Restaurant.deleteOne({ _id: createdRestaurant._id }).catch((cleanupError) => {
+        console.error('[POST /api/users] Restaurant cleanup failed after registration error:', cleanupError);
+      });
+    }
+    if (createdUser?._id) {
+      await User.deleteOne({ _id: createdUser._id }).catch((cleanupError) => {
+        console.error('[POST /api/users] Cleanup failed after registration error:', cleanupError);
+      });
+    }
+    console.error('[POST /api/users] Registration failed:', error);
     res.status(400).json({ message: error.message || 'Unable to create user' });
   }
 });

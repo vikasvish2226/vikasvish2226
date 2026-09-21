@@ -65,6 +65,6 @@ The local frontend uses `/api` through the Vite proxy at `http://localhost:5000`
 
 ## Production Deployment
 
-Deploy the frontend and backend separately. The frontend must use a build-time `VITE_API_URL` containing the public backend URL, for example `https://api.example.com/api`. The backend must define `MONGODB_URI`, `PORT`, and `FRONTEND_URL` in its hosting provider's environment settings. `FRONTEND_URL` may contain comma-separated frontend origins when more than one is required.
+Deploy the frontend and backend separately. The frontend must use a build-time `VITE_API_URL` containing the public backend URL, for example `https://api.example.com/api`. For the GitHub Pages workflow, add a repository secret named `VITE_API_URL`; the workflow passes it into the production build so the website never posts registration data to GitHub Pages itself. The backend must define `MONGODB_URI`, `PORT`, and `FRONTEND_URL` in its hosting provider's environment settings. `FRONTEND_URL` may contain comma-separated frontend origins when more than one is required.
 
 Never commit `.env`, MongoDB credentials, or other secrets. GitHub Pages can host the static frontend only; MongoDB access remains server-side through the Express API.

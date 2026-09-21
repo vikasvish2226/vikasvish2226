@@ -369,6 +369,10 @@ function Signup({ state, setState, navigate, notify }: CommonProps) {
         name: googleProfile ? googleProfile.name : data.ownerName,
         email: (googleProfile ? googleProfile.email : data.email).toLowerCase(),
         password: googleProfile ? '' : data.password,
+        confirmPassword: googleProfile ? '' : data.confirmPassword,
+        restaurantName: data.restaurantName,
+        phone: data.mobile,
+        address: data.address,
         role: 'owner',
         googleUid: googleProfile?.uid || null,
         photoURL: googleProfile?.photoURL || '',
@@ -380,17 +384,24 @@ function Signup({ state, setState, navigate, notify }: CommonProps) {
       });
 
       const next = createOwner(state, googleProfile ? { ...data, ownerName: googleProfile.name, email: googleProfile.email, password: '', googleUid: googleProfile.uid, photoURL: googleProfile.photoURL } : data);
+      const savedRestaurantId = savedUser.restaurantId || next.restaurants[next.restaurants.length - 1]?.id || '';
+      const mergedRestaurants = next.restaurants.map((item, index) => index === next.restaurants.length - 1 ? {
+        ...item,
+        id: savedRestaurantId,
+        ownerId: savedUser.id,
+      } : item);
       const mergedOwners = [...next.owners.filter((item) => item.email !== savedUser.email), {
         ...next.owners[next.owners.length - 1],
         id: savedUser.id,
         email: savedUser.email,
         name: savedUser.name,
         password: googleProfile ? '' : data.password,
+        restaurantId: savedRestaurantId,
         googleUid: savedUser.googleUid || googleProfile?.uid,
         photoURL: savedUser.photoURL || googleProfile?.photoURL,
       }];
 
-      setState({ ...next, owners: mergedOwners, currentOwnerId: savedUser.id });
+      setState({ ...next, owners: mergedOwners, restaurants: mergedRestaurants, currentOwnerId: savedUser.id });
       clearGoogleProfile();
       notify('Restaurant profile and MongoDB account created.');
       navigate('/dashboard');

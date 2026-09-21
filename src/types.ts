@@ -14,6 +14,12 @@ export interface User {
   photoURL?: string;
   createdAt?: string;
   updatedAt?: string;
+  restaurant?: {
+    id: string;
+    name: string;
+    phone: string;
+    address: string;
+  };
 }
 
 export interface Owner {
