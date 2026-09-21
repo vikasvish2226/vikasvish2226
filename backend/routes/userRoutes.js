@@ -1,5 +1,6 @@
 import express from 'express';
 import User from '../models/User.js';
+import { hashPassword, verifyPassword } from '../utils/password.js';
 
 const router = express.Router();
 
@@ -22,7 +23,7 @@ router.post('/login', async (req, res) => {
     }
 
     const user = await User.findOne({ email }).select('+password');
-    if (!user || user.password !== password) {
+    if (!user || !(await verifyPassword(password, user.password))) {
       return res.status(401).json({ message: 'Invalid email or password.' });
     }
 
@@ -42,10 +43,11 @@ router.post('/', async (req, res) => {
     const name = String(req.body?.name || '').trim();
     const email = String(req.body?.email || '').trim().toLowerCase();
     const password = String(req.body?.password || '');
+    const googleUid = String(req.body?.googleUid || '').trim();
     const role = req.body?.role || 'owner';
 
-    if (!name || !email) {
-      return res.status(400).json({ message: 'Name and email are required.' });
+    if (!name || !email || (!password && !googleUid)) {
+      return res.status(400).json({ message: 'Name and email are required, along with a password or Google account.' });
     }
 
     const existingUser = await User.findOne({ email });
@@ -56,10 +58,10 @@ router.post('/', async (req, res) => {
     const createdUser = await User.create({
       name,
       email,
-      password,
+      password: password ? await hashPassword(password) : '',
       role,
       restaurantId: req.body?.restaurantId || null,
-      googleUid: req.body?.googleUid || null,
+      googleUid: googleUid || null,
       photoURL: req.body?.photoURL || '',
     });
 
@@ -70,6 +72,9 @@ router.post('/', async (req, res) => {
 
     res.status(201).json(safeUser);
   } catch (error) {
+    if (error?.code === 11000) {
+      return res.status(409).json({ message: 'User with this email already exists.' });
+    }
     res.status(400).json({ message: error.message || 'Unable to create user' });
   }
 });

@@ -1,17 +1,29 @@
 import type { AppState, Category, Food, Order, Rating, Restaurant, User } from "../types";
 
-const API_BASE = "/api";
+export const API_BASE = (import.meta.env.VITE_API_URL || "/api").replace(/\/$/, "");
 
-async function api<T>(path: string): Promise<T> {
+export async function requestApi<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
+    ...options,
     headers: { "Content-Type": "application/json" },
   });
 
   if (!response.ok) {
-    throw new Error(`API request failed: ${response.status}`);
+    let message = `API request failed: ${response.status}`;
+    try {
+      const body = await response.json() as { message?: string };
+      message = body.message || message;
+    } catch {
+      // Keep the status-based error when the response is not JSON.
+    }
+    throw new Error(message);
   }
 
   return response.json() as Promise<T>;
+}
+
+async function api<T>(path: string): Promise<T> {
+  return requestApi<T>(path);
 }
 
 export async function loadRemoteAppState(): Promise<Partial<AppState> | null> {

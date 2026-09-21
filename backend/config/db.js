@@ -1,11 +1,10 @@
 import mongoose from 'mongoose';
 
-const DEFAULT_URI = 'mongodb://127.0.0.1:27017/restaurantQR';
-
 const connectDB = async () => {
-  const uri = process.env.MONGODB_URI && !process.env.MONGODB_URI.includes('<username>')
-    ? process.env.MONGODB_URI
-    : DEFAULT_URI;
+  const uri = process.env.MONGODB_URI?.trim();
+  if (!uri) {
+    throw new Error('MONGODB_URI is missing. Add it to the project root .env file.');
+  }
 
   try {
     const conn = await mongoose.connect(uri, {
@@ -13,7 +12,7 @@ const connectDB = async () => {
     });
     console.log(`MongoDB connected: ${conn.connection.host}`);
   } catch (error) {
-    console.warn('MongoDB connection unavailable. Continuing with in-memory/local fallback mode.', error.message);
+    throw new Error(`MongoDB connection failed: ${error.message}`);
   }
 };
 

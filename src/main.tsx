@@ -35,9 +35,9 @@ import {
 import "./index.css";
 import Landing from "./Landing";
 import { addCategory, addRatings, createOrder, createOwner, loadState, saveState, upsertFood } from "./data";
-import { loadRemoteAppState } from "./services/api";
+import { loadRemoteAppState, requestApi } from "./services/api";
 import { firebaseEnabled, signInWithGoogle } from "./firebase";
-import type { AppState, CartLine, Food, Order, OrderStatus, PaymentMethod, Restaurant } from "./types";
+import type { AppState, CartLine, Food, Order, OrderStatus, PaymentMethod, Restaurant, User } from "./types";
 
 const currency = { format: (value: number) => `INR ${Math.round(value).toLocaleString("en-IN")}` };
 const statusOrder: OrderStatus[] = ["PLACED", "ACCEPTED", "PREPARING", "READY", "COMPLETED"];
@@ -302,16 +302,10 @@ function Login({ state, setState, navigate, notify }: CommonProps) {
     const email = data.email.toLowerCase();
 
     try {
-      const response = await fetch('/api/users/login', {
+      const user = await requestApi<User>('/users/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password: data.password }),
       });
-
-      const user = await response.json();
-      if (!response.ok) {
-        throw new Error(user?.message || 'Login failed.');
-      }
 
       const owner = state.owners.find((item) => item.email === email) || {
         id: user.id,
@@ -380,16 +374,10 @@ function Signup({ state, setState, navigate, notify }: CommonProps) {
         photoURL: googleProfile?.photoURL || '',
       };
 
-      const response = await fetch('/api/users', {
+      const savedUser = await requestApi<User>('/users', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-
-      const savedUser = await response.json();
-      if (!response.ok) {
-        throw new Error(savedUser?.message || 'Unable to save owner profile.');
-      }
 
       const next = createOwner(state, googleProfile ? { ...data, ownerName: googleProfile.name, email: googleProfile.email, password: '', googleUid: googleProfile.uid, photoURL: googleProfile.photoURL } : data);
       const mergedOwners = [...next.owners.filter((item) => item.email !== savedUser.email), {
@@ -407,11 +395,7 @@ function Signup({ state, setState, navigate, notify }: CommonProps) {
       notify('Restaurant profile and MongoDB account created.');
       navigate('/dashboard');
     } catch (error) {
-      const next = createOwner(state, googleProfile ? { ...data, ownerName: googleProfile.name, email: googleProfile.email, password: '', googleUid: googleProfile.uid, photoURL: googleProfile.photoURL } : data);
-      setState(next);
-      clearGoogleProfile();
-      notify(error instanceof Error ? error.message : 'Restaurant profile and QR route created.');
-      navigate('/dashboard');
+      notify(error instanceof Error ? error.message : 'Unable to save owner profile.');
     }
   }
   async function googleSignup() {
